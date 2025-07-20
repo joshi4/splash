@@ -1,6 +1,5 @@
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
@@ -14,9 +13,9 @@ import (
 	"syscall"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
 	"github.com/joshi4/splash/colorizer"
 	"github.com/joshi4/splash/parser"
+	"github.com/muesli/termenv"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +31,7 @@ var (
 // createSplashHeader creates a colorful SPLASH header using log colors
 func createSplashHeader() string {
 	theme := colorizer.NewAdaptiveTheme()
-	
+
 	// ASCII art for SPLASH using block characters - each letter is 5 lines tall
 	sArt := []string{
 		"█████",
@@ -41,7 +40,7 @@ func createSplashHeader() string {
 		"    █",
 		"█████",
 	}
-	
+
 	pArt := []string{
 		"█████",
 		"█   █",
@@ -49,7 +48,7 @@ func createSplashHeader() string {
 		"█    ",
 		"█    ",
 	}
-	
+
 	lArt := []string{
 		"█    ",
 		"█    ",
@@ -57,7 +56,7 @@ func createSplashHeader() string {
 		"█    ",
 		"█████",
 	}
-	
+
 	aArt := []string{
 		" ███ ",
 		"█   █",
@@ -65,7 +64,7 @@ func createSplashHeader() string {
 		"█   █",
 		"█   █",
 	}
-	
+
 	s2Art := []string{
 		"█████",
 		"█    ",
@@ -73,7 +72,7 @@ func createSplashHeader() string {
 		"    █",
 		"█████",
 	}
-	
+
 	hArt := []string{
 		"█   █",
 		"█   █",
@@ -81,42 +80,42 @@ func createSplashHeader() string {
 		"█   █",
 		"█   █",
 	}
-	
+
 	// Combine all letters with colors
 	var lines []string
 	for i := 0; i < 5; i++ {
 		line := "  " +
-			theme.Error.Render(sArt[i]) + " " +      // Red
-			theme.Warning.Render(pArt[i]) + " " +    // Yellow
-			theme.Info.Render(lArt[i]) + " " +       // Cyan
-			theme.StatusOK.Render(aArt[i]) + " " +   // Green
-			theme.IP.Render(s2Art[i]) + " " +        // Blue
-			theme.Method.Render(hArt[i])             // Pink
+			theme.Error.Render(sArt[i]) + " " + // Red
+			theme.Warning.Render(pArt[i]) + " " + // Yellow
+			theme.Info.Render(lArt[i]) + " " + // Cyan
+			theme.StatusOK.Render(aArt[i]) + " " + // Green
+			theme.IP.Render(s2Art[i]) + " " + // Blue
+			theme.Method.Render(hArt[i]) // Pink
 		lines = append(lines, line)
 	}
-	
+
 	header := "\n"
 	for _, line := range lines {
 		header += line + "\n"
 	}
-	
+
 	subtitle := lipgloss.NewStyle().
 		Bold(true).
-		Render("  Add color to your logs")
-		
+		Render("  Add color to your logs. No config | Just pipe")
+
 	return header + "\n" + subtitle + "\n"
 }
 
 // createColorizerWithTheme creates a colorizer with proper theme detection
 func createColorizerWithTheme() *colorizer.Colorizer {
 	c := colorizer.NewColorizer()
-	
+
 	// Handle explicit theme flags
 	if lightTheme && darkTheme {
 		fmt.Fprintf(os.Stderr, "Cannot use both --light and --dark flags simultaneously\n")
 		os.Exit(1)
 	}
-	
+
 	if lightTheme {
 		// Force light theme colors by setting the colorizer to use light theme
 		c.SetTheme(colorizer.NewLightTheme())
@@ -125,7 +124,7 @@ func createColorizerWithTheme() *colorizer.Colorizer {
 		c.SetTheme(colorizer.NewDarkTheme())
 	}
 	// Otherwise use default adaptive theme
-	
+
 	return c
 }
 
@@ -158,7 +157,7 @@ func runSplash() {
 		// This ensures colors work when doing: echo "log" | splash | less -R
 		lipgloss.SetColorProfile(termenv.TrueColor)
 	}
-	
+
 	// Create a context that will be cancelled when we receive a signal
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -169,21 +168,20 @@ func runSplash() {
 
 	// Start a goroutine to handle signals
 	go func() {
-		sig := <-sigChan
-		fmt.Fprintf(os.Stderr, "\nReceived signal: %v, shutting down gracefully...\n", sig)
+		<-sigChan
 		cancel()
 	}()
 
 	// Create optimized parser and colorizer with theme detection
 	logParser := parser.NewParser()
 	logColorizer := createColorizerWithTheme()
-	
+
 	// Set search patterns if provided
 	if searchPattern != "" && regexPattern != "" {
 		fmt.Fprintf(os.Stderr, "Cannot use both --search and --regexp flags simultaneously\n")
 		os.Exit(1)
 	}
-	
+
 	if searchPattern != "" {
 		logColorizer.SetSearchString(searchPattern)
 	} else if regexPattern != "" {
@@ -196,10 +194,10 @@ func runSplash() {
 
 	// Read from stdin and write to stdout
 	scanner := bufio.NewScanner(os.Stdin)
-	
+
 	// Channel to signal when reading is done
 	done := make(chan bool)
-	
+
 	go func() {
 		defer close(done)
 		for scanner.Scan() {
@@ -215,13 +213,13 @@ func runSplash() {
 				fmt.Println(colorizedLine)
 			}
 		}
-		
+
 		// Check for scanner errors
 		if err := scanner.Err(); err != nil && err != io.EOF {
 			fmt.Fprintf(os.Stderr, "Error reading from stdin: %v\n", err)
 		}
 	}()
-	
+
 	// Wait for either the context to be cancelled or reading to complete
 	select {
 	case <-ctx.Done():
@@ -235,11 +233,9 @@ func init() {
 	// Search flags
 	rootCmd.Flags().StringVarP(&searchPattern, "search", "s", "", "highlight matching text in a log line")
 	rootCmd.Flags().StringVarP(&regexPattern, "regexp", "r", "", "highlight text that matches a regexp per log line")
-	
+
 	// Theme flags
 	rootCmd.Flags().BoolVar(&lightTheme, "light", false, "force light theme colors (for light terminal backgrounds)")
 	rootCmd.Flags().BoolVar(&darkTheme, "dark", false, "force dark theme colors (for dark terminal backgrounds)")
 	rootCmd.Flags().BoolVar(&noColor, "no-color", false, "disable all colors")
 }
-
-
