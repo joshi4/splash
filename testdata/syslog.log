@@ -1,0 +1,10 @@
+Jan 19 08:30:00 web-server nginx[1234]: INFO: Configuration loaded successfully
+Jan 19 08:30:15 auth-server myapp[5678]: DEBUG: Database pool initialized with 10 connections
+Jan 19 08:31:00 worker-01 celery[9012]: INFO: Task worker started
+Jan 19 08:31:30 web-server nginx[1234]: WARN: High number of connections detected
+Jan 19 08:32:00 database-server postgres[3456]: ERROR: Connection limit exceeded
+Jan 19 08:32:15 auth-server myapp[5678]: FATAL: Unable to authenticate user
+Jan 19 08:32:30 monitoring-server prometheus[7890]: INFO: Metrics collected successfully
+Jan 19 08:33:00 load-balancer haproxy[2345]: WARN: Backend server not responding
+Jan 19 08:33:15 cache-server redis[6789]: ERROR: Memory usage critical
+Jan 19 08:33:30 worker-02 celery[8901]: INFO: Task completed successfully

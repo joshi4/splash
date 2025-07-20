@@ -1,0 +1,10 @@
+2025/01/19 08:30:00 INFO: Application started on port 8080
+2025/01/19 08:30:15 DEBUG: Database connection pool created
+2025/01/19 08:31:00 INFO: HTTP server listening on :8080
+2025/01/19 08:31:30 WARN: High CPU usage detected: 85%
+2025/01/19 08:32:00 ERROR: Failed to connect to database
+2025/01/19 08:32:15 FATAL: Critical error, shutting down
+2025/01/19 08:32:30 INFO: Graceful shutdown initiated
+2025/01/19 08:33:00 DEBUG: Cleaning up resources
+2025/01/19 08:33:15 WARN: Slow query detected: 2.5s
+2025/01/19 08:33:30 ERROR: Authentication failed for user

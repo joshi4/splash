@@ -1,0 +1,10 @@
+2025-01-19T08:30:00.123456789Z INFO Container started successfully
+2025-01-19T08:30:15.234567890Z DEBUG Health check endpoint configured
+2025-01-19T08:30:30.345678901Z INFO Application listening on port 8080
+2025-01-19T08:31:00.456789012Z WARN Memory usage approaching limit: 80%
+2025-01-19T08:31:15.567890123Z ERROR Failed to connect to external service
+2025-01-19T08:31:30.678901234Z FATAL Critical error in main thread
+2025-01-19T08:32:00.789012345Z INFO Attempting graceful shutdown
+2025-01-19T08:32:15.890123456Z DEBUG Closing database connections
+2025-01-19T08:32:30.901234567Z WARN Timeout waiting for connections to close
+2025-01-19T08:33:00.012345678Z ERROR Container exit code: 1

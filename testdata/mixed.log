@@ -1,0 +1,12 @@
+{"timestamp":"2025-01-19T08:30:00Z","level":"INFO","message":"JSON log entry","service":"api"}
+timestamp=2025-01-19T08:30:01Z level=info msg="Logfmt entry" service=worker
+192.168.1.100 - - [19/Jan/2025:08:30:02 +0000] "GET /health HTTP/1.1" 200 123
+Jan 19 08:30:03 server myapp[1234]: INFO: Syslog entry
+2025/01/19 08:30:04 INFO: Go standard log entry
+[2025-01-19 08:30:05] INFO -- : Rails log entry
+2025-01-19T08:30:06.123456789Z INFO Docker container log
+2025-01-19T08:30:07.123Z 1 main.go:42] INFO Kubernetes pod log
+2025-01-19T08:30:08+00:00 app[web.1]: INFO Heroku dyno log
+192.168.1.200 - - [19/Jan/2025:08:30:09 +0000] "POST /api/data HTTP/1.1" 201 456 "-" "curl/7.68.0"
+{"timestamp":"2025-01-19T08:30:10Z","level":"ERROR","message":"Mixed format error","service":"mixer"}
+Unknown log format that should remain unchanged

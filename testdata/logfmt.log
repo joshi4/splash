@@ -1,0 +1,10 @@
+timestamp=2025-01-19T08:30:00Z level=info msg="Application started" service=auth-api version=1.2.3 port=8080
+timestamp=2025-01-19T08:30:15Z level=info msg="Database connection established" service=auth-api database=postgres connection_pool=10
+timestamp=2025-01-19T08:31:42Z level=debug msg="Processing login request" service=auth-api user_id=user123 request_id=req-abc-123
+timestamp=2025-01-19T08:31:43Z level=info msg="User authenticated successfully" service=auth-api user_id=user123 duration_ms=120
+timestamp=2025-01-19T08:32:18Z level=warn msg="Rate limit approaching" service=auth-api user_id=user456 current_rate=95 limit=100
+timestamp=2025-01-19T08:33:05Z level=error msg="Database connection failed" service=auth-api error="connection timeout" retry_count=3
+timestamp=2025-01-19T08:33:06Z level=fatal msg="Application shutting down" service=auth-api reason=database_unavailable uptime_seconds=276
+timestamp=2025-01-19T08:33:30Z level=info msg="Health check passed" service=web-frontend endpoint="/health" response_time_ms=5 status=healthy
+timestamp=2025-01-19T08:34:12Z level=error msg="Payment processing failed" service=payment-api transaction_id=txn_789 amount=29.99 currency=USD error_code=CARD_DECLINED
+timestamp=2025-01-19T08:34:45Z level=warn msg="High memory usage detected" service=worker memory_usage_mb=1024 memory_limit_mb=1200 threshold_percent=85

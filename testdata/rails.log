@@ -1,0 +1,10 @@
+[2025-01-19 08:30:00] INFO -- : Started GET "/" for 192.168.1.100 at 2025-01-19 08:30:00 +0000
+[2025-01-19 08:30:01] DEBUG -- : User Load (1.2ms) SELECT "users".* FROM "users" WHERE "users"."id" = $1 LIMIT $2
+[2025-01-19 08:30:01] INFO -- : Processing by HomeController#index as HTML
+[2025-01-19 08:30:01] INFO -- : Rendered home/index.html.erb within layouts/application (2.3ms)
+[2025-01-19 08:30:01] INFO -- : Completed 200 OK in 45ms (Views: 23.1ms | ActiveRecord: 1.2ms)
+[2025-01-19 08:30:15] WARN -- : Slow query detected: User Load (1500.5ms)
+[2025-01-19 08:30:30] ERROR -- : NoMethodError (undefined method `name' for nil:NilClass)
+[2025-01-19 08:30:30] ERROR -- : app/controllers/users_controller.rb:25:in `show'
+[2025-01-19 08:31:00] FATAL -- : ActionController::RoutingError (No route matches [GET] "/invalid")
+[2025-01-19 08:31:15] INFO -- : Cache miss: user_profile_123

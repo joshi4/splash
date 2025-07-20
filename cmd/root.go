@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/joshi4/splash/colorizer"
 	"github.com/joshi4/splash/parser"
 	"github.com/spf13/cobra"
 )
@@ -53,8 +54,9 @@ func runSplash() {
 		cancel()
 	}()
 
-	// Create optimized parser
+	// Create optimized parser and colorizer
 	logParser := parser.NewParser()
+	logColorizer := colorizer.NewColorizer()
 
 	// Read from stdin and write to stdout
 	scanner := bufio.NewScanner(os.Stdin)
@@ -66,9 +68,9 @@ func runSplash() {
 			line := scanner.Text()
 			// Detect log format for this line using optimized parser
 			format := logParser.DetectFormat(line)
-			// For now, just output the line (format detection is ready for future use)
-			_ = format
-			fmt.Println(line)
+			// Apply colors based on detected format
+			colorizedLine := logColorizer.ColorizeLog(line, format)
+			fmt.Println(colorizedLine)
 		}
 	}
 

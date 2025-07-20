@@ -1,0 +1,10 @@
+2025-01-19T08:30:00.123Z 1 main.go:42] INFO Starting application server
+2025-01-19T08:30:15.234Z 1 config.go:15] DEBUG Configuration loaded from /etc/config
+2025-01-19T08:30:30.345Z 1 server.go:87] INFO HTTP server started on port 8080
+2025-01-19T08:31:00.456Z 1 database.go:23] WARN Connection pool size approaching limit
+2025-01-19T08:31:15.567Z 1 auth.go:156] ERROR Failed to validate JWT token
+2025-01-19T08:31:30.678Z 1 cache.go:34] FATAL Redis connection lost
+2025-01-19T08:32:00.789Z 1 metrics.go:67] INFO Collecting application metrics
+2025-01-19T08:32:15.890Z 1 handler.go:201] DEBUG Processing user request
+2025-01-19T08:32:30.901Z 1 worker.go:45] WARN Job queue is full
+2025-01-19T08:33:00.012Z 1 shutdown.go:12] ERROR Graceful shutdown failed

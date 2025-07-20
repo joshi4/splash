@@ -1,0 +1,10 @@
+2025-01-19T08:30:00+00:00 app[web.1]: INFO Starting web dyno
+2025-01-19T08:30:15+00:00 app[web.1]: DEBUG Environment variables loaded
+2025-01-19T08:30:30+00:00 app[web.1]: INFO Application ready to serve requests
+2025-01-19T08:31:00+00:00 app[worker.1]: INFO Background worker started
+2025-01-19T08:31:15+00:00 app[web.1]: WARN High response time detected: 2.5s
+2025-01-19T08:31:30+00:00 app[web.1]: ERROR Database connection timeout
+2025-01-19T08:32:00+00:00 app[worker.1]: FATAL Job processing failed
+2025-01-19T08:32:15+00:00 app[web.1]: INFO Health check passed
+2025-01-19T08:32:30+00:00 app[scheduler.1]: DEBUG Scheduled job executed
+2025-01-19T08:33:00+00:00 app[web.1]: WARN Memory usage: 95% of limit
