@@ -32,6 +32,8 @@ go build
 
 The easiest way to use Splash is to pipe any log output through it:
 
+**Note:** Some applications write logs to stderr instead of stdout. If you don't see colorized output, try redirecting stderr to stdout using `2>&1`:
+
 ```bash
 # Stream system logs (Linux/macOS)
 journalctl -f | splash
@@ -44,6 +46,9 @@ echo '{"timestamp":"2025-01-19T10:30:00Z","level":"ERROR","message":"Connection 
 
 # View system logs (macOS)
 log stream --predicate 'eventMessage contains "error"' | splash -s "error"
+
+# If logs aren't appearing, redirect stderr to stdout
+your-app 2>&1 | splash
 ```
 
 ## 💡 Usage Examples
