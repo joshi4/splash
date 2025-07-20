@@ -25,6 +25,11 @@ func NewColorizer() *Colorizer {
 	}
 }
 
+// SetTheme sets a custom theme for the colorizer
+func (c *Colorizer) SetTheme(theme *ColorTheme) {
+	c.theme = theme
+}
+
 // SetSearchString sets a literal string to search for and highlight
 func (c *Colorizer) SetSearchString(pattern string) {
 	c.searchString = pattern
@@ -528,21 +533,22 @@ func (c *Colorizer) colorizeApacheCommon(line string) string {
 	size := matches[9]
 	
 	result := strings.Builder{}
-	result.WriteString(c.applyStyleWithMarkers(ip, c.theme.IP))
+	// Apply search highlighting during colorization (single-pass)
+	result.WriteString(c.applySearchHighlighting(ip, c.theme.IP))
 	result.WriteString(" - - ")
 	result.WriteString(c.theme.Bracket.Render("["))
-	result.WriteString(c.applyStyleWithMarkers(timestamp, c.theme.Timestamp))
+	result.WriteString(c.applySearchHighlighting(timestamp, c.theme.Timestamp))
 	result.WriteString(c.theme.Bracket.Render("] "))
 	result.WriteString(c.theme.Quote.Render(`"`))
-	result.WriteString(c.applyStyleWithMarkers(method, c.theme.Method))
+	result.WriteString(c.applySearchHighlighting(method, c.theme.Method))
 	result.WriteString(" ")
-	result.WriteString(c.applyStyleWithMarkers(url, c.theme.URL))
+	result.WriteString(c.applySearchHighlighting(url, c.theme.URL))
 	result.WriteString(" ")
-	result.WriteString(protocol)
+	result.WriteString(c.applySearchHighlighting(protocol, lipgloss.NewStyle()))
 	result.WriteString(c.theme.Quote.Render(`" `))
-	result.WriteString(c.applyStyleWithMarkers(status, c.theme.GetHTTPStatusStyle(status)))
+	result.WriteString(c.applySearchHighlighting(status, c.theme.GetHTTPStatusStyle(status)))
 	result.WriteString(" ")
-	result.WriteString(size)
+	result.WriteString(c.applySearchHighlighting(size, lipgloss.NewStyle()))
 	
 	return result.String()
 }
@@ -568,26 +574,27 @@ func (c *Colorizer) colorizeNginx(line string) string {
 	userAgent := matches[11]
 	
 	result := strings.Builder{}
-	result.WriteString(c.applyStyleWithMarkers(ip, c.theme.IP))
+	// Apply search highlighting during colorization (single-pass)
+	result.WriteString(c.applySearchHighlighting(ip, c.theme.IP))
 	result.WriteString(" - - ")
 	result.WriteString(c.theme.Bracket.Render("["))
-	result.WriteString(c.applyStyleWithMarkers(timestamp, c.theme.Timestamp))
+	result.WriteString(c.applySearchHighlighting(timestamp, c.theme.Timestamp))
 	result.WriteString(c.theme.Bracket.Render("] "))
 	result.WriteString(c.theme.Quote.Render(`"`))
-	result.WriteString(c.applyStyleWithMarkers(method, c.theme.Method))
+	result.WriteString(c.applySearchHighlighting(method, c.theme.Method))
 	result.WriteString(" ")
-	result.WriteString(c.applyStyleWithMarkers(url, c.theme.URL))
+	result.WriteString(c.applySearchHighlighting(url, c.theme.URL))
 	result.WriteString(" ")
-	result.WriteString(protocol)
+	result.WriteString(c.applySearchHighlighting(protocol, lipgloss.NewStyle()))
 	result.WriteString(c.theme.Quote.Render(`" `))
-	result.WriteString(c.applyStyleWithMarkers(status, c.theme.GetHTTPStatusStyle(status)))
+	result.WriteString(c.applySearchHighlighting(status, c.theme.GetHTTPStatusStyle(status)))
 	result.WriteString(" ")
-	result.WriteString(size)
+	result.WriteString(c.applySearchHighlighting(size, lipgloss.NewStyle()))
 	result.WriteString(" ")
 	result.WriteString(c.theme.Quote.Render(`"`))
-	result.WriteString(referer)
+	result.WriteString(c.applySearchHighlighting(referer, lipgloss.NewStyle()))
 	result.WriteString(c.theme.Quote.Render(`" "`))
-	result.WriteString(userAgent)
+	result.WriteString(c.applySearchHighlighting(userAgent, lipgloss.NewStyle()))
 	result.WriteString(c.theme.Quote.Render(`"`))
 	
 	return result.String()
@@ -633,15 +640,16 @@ func (c *Colorizer) colorizeSyslog(line string) string {
 	message := matches[5]
 	
 	result := strings.Builder{}
-	result.WriteString(c.applyStyleWithMarkers(timestamp, c.theme.Timestamp))
+	// Apply search highlighting during colorization (single-pass)
+	result.WriteString(c.applySearchHighlighting(timestamp, c.theme.Timestamp))
 	result.WriteString(" ")
-	result.WriteString(c.applyStyleWithMarkers(hostname, c.theme.Hostname))
+	result.WriteString(c.applySearchHighlighting(hostname, c.theme.Hostname))
 	result.WriteString(" ")
-	result.WriteString(c.applyStyleWithMarkers(process, c.theme.Service))
+	result.WriteString(c.applySearchHighlighting(process, c.theme.Service))
 	result.WriteString(c.theme.Bracket.Render("["))
-	result.WriteString(c.applyStyleWithMarkers(pid, c.theme.PID))
+	result.WriteString(c.applySearchHighlighting(pid, c.theme.PID))
 	result.WriteString(c.theme.Bracket.Render("]: "))
-	result.WriteString(c.colorizeMessage(message))
+	result.WriteString(c.colorizeMessageWithHighlighting(message))
 	
 	return result.String()
 }
@@ -684,13 +692,14 @@ func (c *Colorizer) colorizeRails(line string) string {
 		result := strings.Builder{}
 		result.WriteString(c.theme.Bracket.Render("["))
 		timestampContent := timestamp[1:len(timestamp)-1] // Remove brackets
-		result.WriteString(c.applyStyleWithMarkers(timestampContent, c.theme.Timestamp))
+		// Apply search highlighting during colorization (single-pass)
+		result.WriteString(c.applySearchHighlighting(timestampContent, c.theme.Timestamp))
 		result.WriteString(c.theme.Bracket.Render("] "))
-		result.WriteString(c.applyStyleWithMarkers(level, c.theme.GetLogLevelStyle(level)))
+		result.WriteString(c.applySearchHighlighting(level, c.theme.GetLogLevelStyle(level)))
 		result.WriteString(" ")
-		result.WriteString(separator)
+		result.WriteString(c.applySearchHighlighting(separator, lipgloss.NewStyle()))
 		result.WriteString(" : ")
-		result.WriteString(message)
+		result.WriteString(c.applySearchHighlighting(message, lipgloss.NewStyle()))
 		
 		return result.String()
 	}
@@ -707,11 +716,12 @@ func (c *Colorizer) colorizeRails(line string) string {
 		result := strings.Builder{}
 		result.WriteString(c.theme.Bracket.Render("["))
 		timestampContent := timestamp[1:len(timestamp)-1] // Remove brackets
-		result.WriteString(c.applyStyleWithMarkers(timestampContent, c.theme.Timestamp))
+		// Apply search highlighting during colorization (single-pass)
+		result.WriteString(c.applySearchHighlighting(timestampContent, c.theme.Timestamp))
 		result.WriteString(c.theme.Bracket.Render("] "))
-		result.WriteString(c.applyStyleWithMarkers(level, c.theme.GetLogLevelStyle(level)))
+		result.WriteString(c.applySearchHighlighting(level, c.theme.GetLogLevelStyle(level)))
 		result.WriteString(" ")
-		result.WriteString(c.applyStyleWithMarkers(message, c.theme.JSONValue))
+		result.WriteString(c.applySearchHighlighting(message, c.theme.JSONValue))
 		
 		return result.String()
 	}
@@ -759,15 +769,16 @@ func (c *Colorizer) colorizeKubernetes(line string) string {
 	message := matches[5]
 	
 	result := strings.Builder{}
-	result.WriteString(c.applyStyleWithMarkers(timestamp, c.theme.Timestamp))
+	// Apply search highlighting during colorization (single-pass)
+	result.WriteString(c.applySearchHighlighting(timestamp, c.theme.Timestamp))
 	result.WriteString(" ")
-	result.WriteString(c.applyStyleWithMarkers(severity, c.theme.PID))
+	result.WriteString(c.applySearchHighlighting(severity, c.theme.PID))
 	result.WriteString(" ")
-	result.WriteString(c.applyStyleWithMarkers(filename, c.theme.Filename))
+	result.WriteString(c.applySearchHighlighting(filename, c.theme.Filename))
 	result.WriteString(":")
-	result.WriteString(c.applyStyleWithMarkers(lineNum, c.theme.LineNum))
+	result.WriteString(c.applySearchHighlighting(lineNum, c.theme.LineNum))
 	result.WriteString(c.theme.Bracket.Render("] "))
-	result.WriteString(c.colorizeMessage(message))
+	result.WriteString(c.colorizeMessageWithHighlighting(message))
 	
 	return result.String()
 }
@@ -786,12 +797,13 @@ func (c *Colorizer) colorizeHeroku(line string) string {
 	message := matches[3]
 	
 	result := strings.Builder{}
-	result.WriteString(c.theme.Timestamp.Render(timestamp))
+	// Apply search highlighting during colorization (single-pass)
+	result.WriteString(c.applySearchHighlighting(timestamp, c.theme.Timestamp))
 	result.WriteString(" app")
 	result.WriteString(c.theme.Bracket.Render("["))
-	result.WriteString(c.theme.Service.Render(dyno))
+	result.WriteString(c.applySearchHighlighting(dyno, c.theme.Service))
 	result.WriteString(c.theme.Bracket.Render("]: "))
-	result.WriteString(c.colorizeMessage(message))
+	result.WriteString(c.colorizeMessageWithHighlighting(message))
 	
 	return result.String()
 }

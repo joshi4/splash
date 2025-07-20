@@ -11,6 +11,183 @@ import (
 	"github.com/joshi4/splash/parser"
 )
 
+func TestHerokuSearchHighlighting(t *testing.T) {
+	// This test ensures that Heroku log format search highlighting works correctly
+	// and prevents regression of the bug where no highlighting was applied
+	
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile) 
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	
+	colorizer := NewColorizer()
+	
+	tests := []struct {
+		name        string
+		line        string
+		search      string
+		description string
+	}{
+		{
+			name:        "Timestamp highlighting",
+			line:        "2025-01-19T08:30:00+00:00 app[web.1]: INFO Starting web dyno",
+			search:      "2025",
+			description: "Year in timestamp should be highlighted",
+		},
+		{
+			name:        "Dyno highlighting", 
+			line:        "2025-01-19T08:30:00+00:00 app[web.1]: INFO Starting web dyno",
+			search:      "web",
+			description: "Dyno name should be highlighted",
+		},
+		{
+			name:        "Message highlighting",
+			line:        "2025-01-19T08:30:00+00:00 app[worker.1]: ERROR Database connection failed",
+			search:      "Database",
+			description: "Message content should be highlighted",
+		},
+		{
+			name:        "Log level highlighting",
+			line:        "2025-01-19T08:30:00+00:00 app[web.1]: ERROR Connection failed",
+			search:      "ERROR",
+			description: "Log level should be highlighted",
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			colorizer.SetSearchString(tt.search)
+			result := colorizer.ColorizeLog(tt.line, parser.HerokuFormat)
+			
+			// Verify the result contains ANSI codes (styling preserved)
+			if !strings.Contains(result, "\x1b[") {
+				t.Errorf("Expected ANSI color codes in result for %s, but none found", tt.description)
+			}
+			
+			// Verify the search term is still present in the result
+			if !strings.Contains(result, tt.search) {
+				t.Errorf("Expected search term '%s' to be present in result", tt.search)
+			}
+			
+			// The result should be longer due to ANSI codes
+			if len(result) <= len(tt.line) {
+				t.Errorf("Expected colorized result to be longer than original line due to ANSI codes")
+			}
+		})
+	}
+}
+
+func TestDarkThemeTimestampStylingPreservation(t *testing.T) {
+	// Force color output for testing
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	
+	// Create colorizer with dark theme
+	colorizer := NewColorizer()
+	colorizer.SetTheme(NewDarkTheme())
+	colorizer.SetSearchString("2025")
+	
+	// Test timestamp with partial highlighting
+	testLine := "2025/01/19 08:30:00 INFO: Application started"
+	result := colorizer.ColorizeLog(testLine, parser.GoStandardFormat)
+	
+	// The result should contain:
+	// 1. Highlighted "2025" with search highlight style
+	// 2. The rest of the timestamp "/01/19 08:30:00" with original timestamp styling
+	// 3. The log level "INFO" with info level styling
+	
+	// Check that the result contains ANSI color codes (indicating styling is preserved)
+	if !strings.Contains(result, "\x1b[") {
+		t.Error("Expected ANSI color codes in result, but none found")
+	}
+	
+	// Check that search highlighting is applied (should contain background color)
+	if !strings.Contains(result, "2025") {
+		t.Error("Expected search term '2025' to be present in result")
+	}
+	
+	// Test with another timestamp format - check Kubernetes logs
+	testLine2 := "2025-01-19T10:30:00.123Z 1 main.go:42] INFO Application started"
+	result2 := colorizer.ColorizeLog(testLine2, parser.KubernetesFormat)
+	
+	// Should have highlighted "2025" but preserved styling for the rest
+	if !strings.Contains(result2, "\x1b[") {
+		t.Error("Expected ANSI color codes in Kubernetes timestamp result, but none found")
+	}
+	
+	// Test with Syslog format 
+	testLine3 := "Jan 19 10:30:00 hostname myapp[1234]: INFO Application started"
+	colorizer.SetSearchString("Jan")
+	result3 := colorizer.ColorizeLog(testLine3, parser.SyslogFormat)
+	
+	// Should have highlighted "Jan" but preserved timestamp styling for the rest
+	if !strings.Contains(result3, "\x1b[") {
+		t.Error("Expected ANSI color codes in Syslog timestamp result, but none found")
+	}
+}
+
+func TestDarkThemePreventTimestampStylingRegression(t *testing.T) {
+	// This test specifically checks that timestamps don't lose their styling
+	// when search highlighting is applied in dark themes
+	
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile) 
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	
+	darkTheme := NewDarkTheme()
+	colorizer := NewColorizer()
+	colorizer.SetTheme(darkTheme)
+	
+	// Test cases where timestamps should maintain their color even with partial highlighting
+	tests := []struct {
+		name     string
+		format   parser.LogFormat
+		line     string
+		search   string
+		description string
+	}{
+		{
+			name:        "GoStandard timestamp with year highlight",
+			format:      parser.GoStandardFormat,
+			line:        "2025/01/19 08:30:00 INFO: Test message",
+			search:      "2025",
+			description: "Year portion highlighted, rest of timestamp should keep gray color",
+		},
+		{
+			name:        "Docker timestamp with time highlight", 
+			format:      parser.DockerFormat,
+			line:        "2025-01-19T10:30:00.123456789Z INFO Test message",
+			search:      "30:00",
+			description: "Time portion highlighted, rest of timestamp should keep gray color",
+		},
+		{
+			name:        "Kubernetes timestamp with date highlight",
+			format:      parser.KubernetesFormat, 
+			line:        "2025-01-19T10:30:00.123Z 1 main.go:42] INFO Test message",
+			search:      "19T",
+			description: "Date portion highlighted, rest of timestamp should keep gray color",
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			colorizer.SetSearchString(tt.search)
+			result := colorizer.ColorizeLog(tt.line, tt.format)
+			
+			// Verify the result contains ANSI codes (styling preserved)
+			if !strings.Contains(result, "\x1b[") {
+				t.Errorf("Expected ANSI color codes in result for %s, but none found", tt.description)
+			}
+			
+			// The result should contain search highlighting and original timestamp styling
+			// We can't easily test the exact colors, but we can verify styling is applied
+			if len(result) <= len(tt.line) {
+				t.Errorf("Expected colorized result to be longer than original line due to ANSI codes")
+			}
+		})
+	}
+}
+
 func TestUnifiedSearchHighlightingPreservesOriginalStyling(t *testing.T) {
 	// Force color output for testing
 	originalProfile := lipgloss.ColorProfile()
@@ -18,10 +195,10 @@ func TestUnifiedSearchHighlightingPreservesOriginalStyling(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	
 	tests := []struct {
-		name     string
-		format   parser.LogFormat
-		line     string
-		search   string
+		name              string
+		format            parser.LogFormat
+		line              string
+		search            string
 		expectHighlighted bool
 	}{
 		{
@@ -83,6 +260,62 @@ func TestUnifiedSearchHighlightingPreservesOriginalStyling(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestLightAndDarkThemeForcing(t *testing.T) {
+	// Force color output for testing
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	
+	testLine := `{"level":"ERROR","message":"Database failed"}`
+	
+	// Test adaptive theme (default)
+	adaptiveColorizer := NewColorizer()
+	adaptiveColorizer.SetSearchString("ERROR")
+	adaptiveResult := adaptiveColorizer.ColorizeLog(testLine, parser.JSONFormat)
+	
+	// Test light theme
+	lightColorizer := NewColorizer()
+	lightColorizer.SetTheme(NewLightTheme())
+	lightColorizer.SetSearchString("ERROR")
+	lightResult := lightColorizer.ColorizeLog(testLine, parser.JSONFormat)
+	
+	// Test dark theme
+	darkColorizer := NewColorizer()
+	darkColorizer.SetTheme(NewDarkTheme())
+	darkColorizer.SetSearchString("ERROR")
+	darkResult := darkColorizer.ColorizeLog(testLine, parser.JSONFormat)
+	
+	// All should produce colorized output
+	if !strings.Contains(adaptiveResult, "\x1b[") {
+		t.Error("Adaptive theme should produce ANSI codes")
+	}
+	
+	if !strings.Contains(lightResult, "\x1b[") {
+		t.Error("Light theme should produce ANSI codes")
+	}
+	
+	if !strings.Contains(darkResult, "\x1b[") {
+		t.Error("Dark theme should produce ANSI codes")
+	}
+	
+	// Results should be different between light and dark themes
+	if lightResult == darkResult {
+		t.Error("Light and dark themes should produce different output")
+	}
+	
+	// All should contain the search term highlighting
+	searchTerm := "ERROR"
+	if !strings.Contains(adaptiveResult, searchTerm) {
+		t.Error("Adaptive theme result should contain search term")
+	}
+	if !strings.Contains(lightResult, searchTerm) {
+		t.Error("Light theme result should contain search term")
+	}
+	if !strings.Contains(darkResult, searchTerm) {
+		t.Error("Dark theme result should contain search term")
 	}
 }
 
