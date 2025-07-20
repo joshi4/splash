@@ -24,6 +24,9 @@ import (
 var (
 	searchPattern string
 	regexPattern  string
+	lightTheme    bool
+	darkTheme     bool
+	noColor       bool
 )
 
 // createSplashHeader creates a colorful SPLASH header using log colors
@@ -104,6 +107,28 @@ func createSplashHeader() string {
 	return header + "\n" + subtitle + "\n"
 }
 
+// createColorizerWithTheme creates a colorizer with proper theme detection
+func createColorizerWithTheme() *colorizer.Colorizer {
+	c := colorizer.NewColorizer()
+	
+	// Handle explicit theme flags
+	if lightTheme && darkTheme {
+		fmt.Fprintf(os.Stderr, "Cannot use both --light and --dark flags simultaneously\n")
+		os.Exit(1)
+	}
+	
+	if lightTheme {
+		// Force light theme colors by setting the colorizer to use light theme
+		c.SetTheme(colorizer.NewLightTheme())
+	} else if darkTheme {
+		// Force dark theme colors
+		c.SetTheme(colorizer.NewDarkTheme())
+	}
+	// Otherwise use default adaptive theme
+	
+	return c
+}
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "splash",
@@ -125,9 +150,14 @@ func Execute() {
 
 // runSplash is the main function that reads from stdin and writes to stdout
 func runSplash() {
-	// Force color output even when stdout is not a TTY (when piping output)
-	// This ensures colors work when doing: echo "log" | splash | less -R
-	lipgloss.SetColorProfile(termenv.TrueColor)
+	// Handle color profile and theme detection
+	if noColor {
+		lipgloss.SetColorProfile(termenv.Ascii)
+	} else {
+		// Force color output even when stdout is not a TTY (when piping output)
+		// This ensures colors work when doing: echo "log" | splash | less -R
+		lipgloss.SetColorProfile(termenv.TrueColor)
+	}
 	
 	// Create a context that will be cancelled when we receive a signal
 	ctx, cancel := context.WithCancel(context.Background())
@@ -144,9 +174,9 @@ func runSplash() {
 		cancel()
 	}()
 
-	// Create optimized parser and colorizer
+	// Create optimized parser and colorizer with theme detection
 	logParser := parser.NewParser()
-	logColorizer := colorizer.NewColorizer()
+	logColorizer := createColorizerWithTheme()
 	
 	// Set search patterns if provided
 	if searchPattern != "" && regexPattern != "" {
@@ -205,6 +235,11 @@ func init() {
 	// Search flags
 	rootCmd.Flags().StringVarP(&searchPattern, "search", "s", "", "highlight matching text in a log line")
 	rootCmd.Flags().StringVarP(&regexPattern, "regexp", "r", "", "highlight text that matches a regexp per log line")
+	
+	// Theme flags
+	rootCmd.Flags().BoolVar(&lightTheme, "light", false, "force light theme colors (for light terminal backgrounds)")
+	rootCmd.Flags().BoolVar(&darkTheme, "dark", false, "force dark theme colors (for dark terminal backgrounds)")
+	rootCmd.Flags().BoolVar(&noColor, "no-color", false, "disable all colors")
 }
 
 
