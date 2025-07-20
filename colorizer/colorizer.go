@@ -287,7 +287,7 @@ func (c *Colorizer) colorizeApacheCommon(line string) string {
 	matches := re.FindStringSubmatch(line)
 	
 	if len(matches) != 10 {
-		return line // Fallback if regex doesn't match
+		return c.colorizeGenericLog(line)
 	}
 	
 	ip := matches[1]
@@ -590,12 +590,12 @@ func (c *Colorizer) colorizeMessage(message string) string {
 		
 		if len(parts) > 1 {
 			result.WriteString(" ")
-			result.WriteString(strings.Join(parts[1:], " "))
+			result.WriteString(c.applyStyleWithMarkers(strings.Join(parts[1:], " "), lipgloss.NewStyle()))
 		}
 		return result.String()
 	}
 	
-	return message
+	return c.applyStyleWithMarkers(message, lipgloss.NewStyle())
 }
 
 // colorizeGenericLog provides basic colorization for unrecognized formats
@@ -770,18 +770,35 @@ func (c *Colorizer) highlightJSONTextSimple(colorizedText, searchText string) st
 			// Highlight the entire key
 			result = c.highlightJSONKeyAtPosition(result, plainPos, searchText, plainText)
 		} else {
-			// Highlight just the match (it's in a value)
-			colorizedPos := c.findColorizedPosition(result, c.stripAnsiCodes(result), plainPos)
-			before := result[:colorizedPos]
-			match := result[colorizedPos:colorizedPos+len(searchText)]
-			after := result[colorizedPos+len(searchText):]
-			
-			highlightedMatch := c.theme.SearchHighlight.Render(match)
-			result = before + highlightedMatch + after
+			// Highlight the match in a JSON value by highlighting the entire quoted value
+			result = c.highlightJSONValueAtPosition(result, plainPos, searchText, plainText)
 		}
 	}
 	
 	return result
+}
+
+// highlightJSONValueAtPosition highlights a JSON value containing a search match
+func (c *Colorizer) highlightJSONValueAtPosition(colorizedText string, plainPos int, searchText, plainText string) string {
+	// Find the bounds of the quoted value containing the match
+	start, end := c.findJSONValueBounds(plainText, plainPos)
+	if start == -1 || end == -1 {
+		return colorizedText
+	}
+	
+	// Find corresponding positions in colorized text
+	colorizedStart := c.findColorizedPosition(colorizedText, c.stripAnsiCodes(colorizedText), start)
+	colorizedEnd := c.findColorizedPosition(colorizedText, c.stripAnsiCodes(colorizedText), end)
+	
+	// Extract the value (including quotes)
+	before := colorizedText[:colorizedStart]
+	value := colorizedText[colorizedStart:colorizedEnd]
+	after := colorizedText[colorizedEnd:]
+	
+	// Apply highlighting to the entire quoted value
+	highlightedValue := c.theme.JSONSearchHighlight.Render(value)
+	
+	return before + highlightedValue + after
 }
 
 // isPositionInJSONKey checks if a position is inside a JSON key
@@ -822,7 +839,7 @@ func (c *Colorizer) highlightJSONKeyAtPosition(colorizedText string, pos int, se
 		before := colorizedText[:colorizedPos]
 		match := colorizedText[colorizedPos:colorizedPos+len(searchText)]
 		after := colorizedText[colorizedPos+len(searchText):]
-		return before + c.theme.SearchHighlight.Render(match) + after
+		return before + c.theme.JSONSearchHighlight.Render(match) + after
 	}
 	
 	// Map to colorized text positions
@@ -833,7 +850,7 @@ func (c *Colorizer) highlightJSONKeyAtPosition(colorizedText string, pos int, se
 	keyText := colorizedText[colorizedKeyStart:colorizedKeyEnd]
 	after := colorizedText[colorizedKeyEnd:]
 	
-	highlightedKey := c.theme.SearchHighlight.Render(keyText)
+	highlightedKey := c.theme.JSONSearchHighlight.Render(keyText)
 	return before + highlightedKey + after
 }
 
@@ -1115,6 +1132,30 @@ func (c *Colorizer) highlightTextPreservingColors(colorizedText, searchText stri
 	}
 	
 	return result
+}
+
+// findJSONValueBounds finds the start and end of a JSON value containing the given position
+func (c *Colorizer) findJSONValueBounds(plainText string, pos int) (int, int) {
+	// Find the opening quote of the value
+	valueStart := strings.LastIndex(plainText[:pos], `"`)
+	if valueStart == -1 {
+		return -1, -1
+	}
+	
+	// Find the closing quote of the value
+	valueEnd := strings.Index(plainText[pos:], `"`)
+	if valueEnd == -1 {
+		return -1, -1
+	}
+	valueEnd = pos + valueEnd + 1 // Include the closing quote
+	
+	// Verify this is actually a value (not a key)
+	beforeValue := strings.TrimSpace(plainText[:valueStart])
+	if !strings.HasSuffix(beforeValue, ":") {
+		return -1, -1
+	}
+	
+	return valueStart, valueEnd
 }
 
 // findColorizedPosition maps a position in clean text to the corresponding position in colorized text

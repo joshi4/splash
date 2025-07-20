@@ -175,6 +175,49 @@ func TestNoSearchPattern(t *testing.T) {
 	}
 }
 
+// TestHerokuSearchMarkersNotLeftInOutput verifies that Heroku format search highlighting
+// properly replaces markers with colors and doesn't leave search markers in output
+func TestHerokuSearchMarkersNotLeftInOutput(t *testing.T) {
+	c := NewColorizer()
+	c.SetSearchString("FATAL")
+	
+	tests := []struct {
+		name string
+		line string
+	}{
+		{
+			name: "Search in log level should not leave markers",
+			line: "2025-01-19T08:32:00+00:00 app[worker.1]: FATAL Job processing failed",
+		},
+		{
+			name: "Search in message part should not leave markers", 
+			line: "2025-01-19T08:32:00+00:00 app[web.1]: ERROR FATAL connection timeout",
+		},
+		{
+			name: "Search in dyno name should not leave markers",
+			line: "2025-01-19T08:32:00+00:00 app[FATAL.1]: INFO Application started",
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := c.ColorizeLog(tt.line, parser.HerokuFormat)
+			
+			// Check that no search markers are left in the output
+			if strings.Contains(result, "⟦SEARCH_START⟧") || strings.Contains(result, "⟦SEARCH_END⟧") {
+				t.Errorf("Search markers found in output for line: %s\nResult: %s", tt.line, result)
+			}
+			
+			// If the search term is found in input, the output should contain it too
+			if strings.Contains(tt.line, "FATAL") {
+				if !strings.Contains(result, "FATAL") {
+					t.Errorf("Search term 'FATAL' missing from result for line: %s\nResult: %s", tt.line, result)
+				}
+			}
+		})
+	}
+}
+
 func TestSearchPatternSwitching(t *testing.T) {
 	c := NewColorizer()
 	

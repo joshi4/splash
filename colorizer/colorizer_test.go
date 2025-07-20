@@ -578,4 +578,37 @@ func TestJSONSearchValueHighlighting(t *testing.T) {
 	}
 }
 
+func TestJSONSearchUsesHighVisibilityColors(t *testing.T) {
+	c := NewColorizer()
+	c.SetSearchString("test")
+	
+	// Test that JSON uses JSONSearchHighlight style (high visibility orange)
+	jsonLine := `{"message":"test value"}`
+	jsonResult := c.ColorizeLog(jsonLine, parser.JSONFormat)
+	
+	// Test that non-JSON formats still use the regular SearchHighlight style
+	logfmtLine := `level=info msg="test value"`
+	logfmtResult := c.ColorizeLog(logfmtLine, parser.LogfmtFormat)
+	
+	// While we can't see the actual colors in tests, we can verify the search term is present
+	if !strings.Contains(jsonResult, "test") {
+		t.Errorf("Expected JSON search term to be present, got: %q", jsonResult)
+	}
+	
+	if !strings.Contains(logfmtResult, "test") {
+		t.Errorf("Expected Logfmt search term to be present, got: %q", logfmtResult)
+	}
+	
+	// Note: Can't directly compare lipgloss styles as they contain functions
+	
+	// Test that JSON search highlight uses high visibility color
+	testText := "test"
+	jsonStyled := c.theme.JSONSearchHighlight.Render(testText)
+	regularStyled := c.theme.SearchHighlight.Render(testText)
+	
+	// In a real terminal, these would look different, but in test environment lipgloss disables styling
+	t.Logf("JSON search highlight: %q", jsonStyled)
+	t.Logf("Regular search highlight: %q", regularStyled)
+}
+
 

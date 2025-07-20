@@ -48,7 +48,8 @@ type ColorTheme struct {
 	Equals  lipgloss.Style
 	
 	// Search highlighting
-	SearchHighlight lipgloss.Style
+	SearchHighlight     lipgloss.Style // General search highlighting
+	JSONSearchHighlight lipgloss.Style // JSON-specific search highlighting with high visibility colors
 }
 
 // NewAdaptiveTheme creates a color theme that adapts to the terminal
@@ -98,6 +99,14 @@ func NewAdaptiveTheme() *ColorTheme {
 		// Search highlighting (bold text, no background)
 		SearchHighlight: lipgloss.NewStyle().
 			Bold(true),                             // Bold for visibility
+		
+		// JSON-specific search highlighting with high visibility foreground colors
+		JSONSearchHighlight: lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{Light: "#E17000", Dark: "#FFA500"}).  // Orange: dark orange for light theme, bright orange for dark theme
+			Bold(true),                                                              // Bold for extra visibility
+		// Alternative options (comment/uncomment to change):
+		// Red variant:    Foreground(lipgloss.AdaptiveColor{Light: "#D63031", Dark: "#FF6B6B"}).Bold(true)
+		// Yellow variant: Foreground(lipgloss.AdaptiveColor{Light: "#B8860B", Dark: "#FFFF00"}).Bold(true)
 	}
 }
 
