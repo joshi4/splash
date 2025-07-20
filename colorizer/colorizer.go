@@ -121,15 +121,15 @@ func (c *Colorizer) colorizeJSONValue(key string, value interface{}) string {
 	case string:
 		// Special handling for known fields
 		if c.isLogLevelKey(key) {
-			return c.theme.Quote.Render(`"`) + c.theme.GetLogLevelStyle(v).Render(v) + c.theme.Quote.Render(`"`)
+			return c.theme.Quote.Render(`"`) + c.applyStyleWithMarkers(v, c.theme.GetLogLevelStyle(v)) + c.theme.Quote.Render(`"`)
 		}
 		if c.isTimestampKey(key) {
-			return c.theme.Quote.Render(`"`) + c.theme.Timestamp.Render(v) + c.theme.Quote.Render(`"`)
+			return c.theme.Quote.Render(`"`) + c.applyStyleWithMarkers(v, c.theme.Timestamp) + c.theme.Quote.Render(`"`)
 		}
 		if c.isServiceKey(key) {
-			return c.theme.Quote.Render(`"`) + c.theme.Service.Render(v) + c.theme.Quote.Render(`"`)
+			return c.theme.Quote.Render(`"`) + c.applyStyleWithMarkers(v, c.theme.Service) + c.theme.Quote.Render(`"`)
 		}
-		return c.theme.Quote.Render(`"`) + c.theme.JSONString.Render(v) + c.theme.Quote.Render(`"`)
+		return c.theme.Quote.Render(`"`) + c.applyStyleWithMarkers(v, c.theme.JSONString) + c.theme.Quote.Render(`"`)
 	case float64:
 		numberStr := fmt.Sprintf("%g", v)
 		styledNumber := c.applyStyleWithMarkers(numberStr, c.theme.JSONNumber)
@@ -141,12 +141,62 @@ func (c *Colorizer) colorizeJSONValue(key string, value interface{}) string {
 		}
 		styledBool := c.applyStyleWithMarkers("false", c.theme.StatusWarn)
 		return styledBool
+	case map[string]interface{}:
+		// Recursively colorize nested JSON objects
+		return c.colorizeNestedJSONObject(v)
+	case []interface{}:
+		// Handle JSON arrays
+		return c.colorizeJSONArray(v)
 	default:
-		// Fallback to JSON marshaling
+		// Fallback to JSON marshaling for other types (null, etc.)
 		jsonBytes, _ := json.Marshal(v)
 		styledValue := c.applyStyleWithMarkers(string(jsonBytes), c.theme.JSONValue)
 		return styledValue
 	}
+}
+
+// colorizeNestedJSONObject recursively colorizes a nested JSON object
+func (c *Colorizer) colorizeNestedJSONObject(obj map[string]interface{}) string {
+	result := strings.Builder{}
+	result.WriteString(c.theme.Bracket.Render("{"))
+	
+	first := true
+	for key, value := range obj {
+		if !first {
+			result.WriteString(", ")
+		}
+		first = false
+		
+		// Colorize nested key
+		result.WriteString(c.theme.Quote.Render(`"`))
+		result.WriteString(c.applyStyleWithMarkers(key, c.theme.JSONKey))
+		result.WriteString(c.theme.Quote.Render(`"`))
+		result.WriteString(c.theme.Equals.Render(":"))
+		
+		// Recursively colorize nested value
+		result.WriteString(c.colorizeJSONValue(key, value))
+	}
+	
+	result.WriteString(c.theme.Bracket.Render("}"))
+	return result.String()
+}
+
+// colorizeJSONArray colorizes a JSON array
+func (c *Colorizer) colorizeJSONArray(arr []interface{}) string {
+	result := strings.Builder{}
+	result.WriteString(c.theme.Bracket.Render("["))
+	
+	for i, value := range arr {
+		if i > 0 {
+			result.WriteString(", ")
+		}
+		
+		// Colorize array element (use empty key for array elements)
+		result.WriteString(c.colorizeJSONValue("", value))
+	}
+	
+	result.WriteString(c.theme.Bracket.Render("]"))
+	return result.String()
 }
 
 // colorizeLogfmt adds colors to logfmt lines

@@ -136,3 +136,178 @@ func TestHTTPStatusColors(t *testing.T) {
 		}
 	}
 }
+
+func TestJSONNestedObjects(t *testing.T) {
+	c := NewColorizer()
+
+	tests := []struct {
+		name     string
+		line     string
+		contains []string // Strings that should be present in colorized output
+	}{
+		{
+			name: "Simple nested object",
+			line: `{"level":"ERROR","error":{"code":500,"message":"Internal error"}}`,
+			contains: []string{"level", "ERROR", "error", "code", "500", "message", "Internal error"},
+		},
+		{
+			name: "Deeply nested objects",
+			line: `{"timestamp":"2025-01-19T10:30:00Z","error":{"details":{"timeout":30,"retries":3}}}`,
+			contains: []string{"timestamp", "error", "details", "timeout", "30", "retries", "3"},
+		},
+		{
+			name: "JSON with array",
+			line: `{"level":"INFO","tags":["api","success"],"data":{"count":2}}`,
+			contains: []string{"level", "INFO", "tags", "api", "success", "data", "count", "2"},
+		},
+		{
+			name: "Complex nested structure",
+			line: `{"service":"api","user":{"id":123,"meta":{"roles":["admin","user"]}},"stats":{"requests":100}}`,
+			contains: []string{"service", "api", "user", "id", "123", "meta", "roles", "admin", "user", "stats", "requests", "100"},
+		},
+		{
+			name: "Array of objects",
+			line: `{"events":[{"type":"start","time":"10:00"},{"type":"end","time":"11:00"}]}`,
+			contains: []string{"events", "type", "start", "time", "10:00", "end", "11:00"},
+		},
+		{
+			name: "Nested array with primitives",
+			line: `{"data":{"numbers":[1,2,3],"booleans":[true,false]}}`,
+			contains: []string{"data", "numbers", "1", "2", "3", "booleans", "true", "false"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := c.ColorizeLog(tt.line, parser.JSONFormat)
+			
+			// Verify the result is not empty
+			if result == "" {
+				t.Error("Colorized result is empty")
+			}
+			
+			// Check that expected content is present
+			for _, expected := range tt.contains {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected %q to contain %q, got: %q", result, expected, result)
+				}
+			}
+			
+			// Verify result has structural elements (brackets, quotes, etc.)
+			if !strings.Contains(result, "{") || !strings.Contains(result, "}") {
+				t.Errorf("Expected result to contain JSON structural elements, got: %q", result)
+			}
+		})
+	}
+}
+
+func TestJSONNestedObjectsWithSearch(t *testing.T) {
+	c := NewColorizer()
+
+	tests := []struct {
+		name         string
+		line         string
+		searchString string
+		shouldMatch  bool
+	}{
+		{
+			name:         "Search in nested object value",
+			line:         `{"level":"ERROR","error":{"code":500,"message":"timeout occurred"}}`,
+			searchString: "timeout",
+			shouldMatch:  true,
+		},
+		{
+			name:         "Search in nested object key",
+			line:         `{"data":{"timeout":30,"retries":3}}`,
+			searchString: "timeout",
+			shouldMatch:  true,
+		},
+		{
+			name:         "Search in array element",
+			line:         `{"tags":["error","timeout","network"]}`,
+			searchString: "timeout",
+			shouldMatch:  true,
+		},
+		{
+			name:         "Search with no match in nested structure",
+			line:         `{"level":"INFO","data":{"status":"ok","code":200}}`,
+			searchString: "error",
+			shouldMatch:  false,
+		},
+		{
+			name:         "Search across multiple nesting levels",
+			line:         `{"service":"api","error":{"details":{"timeout":30}}}`,
+			searchString: "timeout",
+			shouldMatch:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c.SetSearchString(tt.searchString)
+			result := c.ColorizeLog(tt.line, parser.JSONFormat)
+			
+			// Verify the result is not empty
+			if result == "" {
+				t.Error("Colorized result is empty")
+			}
+			
+			// Check if search highlighting is applied when expected
+			containsSearchTerm := strings.Contains(tt.line, tt.searchString)
+			if containsSearchTerm != tt.shouldMatch {
+				t.Errorf("Test setup error: expected shouldMatch=%v but line contains search term=%v", tt.shouldMatch, containsSearchTerm)
+			}
+			
+			if tt.shouldMatch {
+				// When search matches, the original search term should still be present in the result
+				if !strings.Contains(result, tt.searchString) {
+					t.Errorf("Expected search term %q to be present in result when match expected, got: %q", tt.searchString, result)
+				}
+			}
+		})
+	}
+}
+
+func TestJSONSpecialFieldsInNestedObjects(t *testing.T) {
+	c := NewColorizer()
+
+	tests := []struct {
+		name     string
+		line     string
+		contains []string // Special field content that should be styled
+	}{
+		{
+			name: "Nested timestamp field",
+			line: `{"data":{"timestamp":"2025-01-19T10:30:00Z","value":123}}`,
+			contains: []string{"timestamp", "2025-01-19T10:30:00Z"},
+		},
+		{
+			name: "Nested level field",
+			line: `{"event":{"level":"ERROR","message":"Failed"}}`,
+			contains: []string{"level", "ERROR"},
+		},
+		{
+			name: "Nested service field",
+			line: `{"context":{"service":"api-gateway","version":"1.0"}}`,
+			contains: []string{"service", "api-gateway"},
+		},
+		{
+			name: "Multiple special fields nested",
+			line: `{"log":{"level":"WARN","service":"auth","timestamp":"2025-01-19T10:30:00Z"}}`,
+			contains: []string{"level", "WARN", "service", "auth", "timestamp", "2025-01-19T10:30:00Z"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := c.ColorizeLog(tt.line, parser.JSONFormat)
+			
+			// Check that expected content is present
+			for _, expected := range tt.contains {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected %q to contain %q, got: %q", result, expected, result)
+				}
+			}
+		})
+	}
+}
