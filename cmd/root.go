@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/joshi4/splash/colorizer"
 	"github.com/joshi4/splash/parser"
 	"github.com/spf13/cobra"
@@ -24,11 +25,89 @@ var (
 	regexPattern  string
 )
 
+// createSplashHeader creates a colorful SPLASH header using log colors
+func createSplashHeader() string {
+	theme := colorizer.NewAdaptiveTheme()
+	
+	// ASCII art for SPLASH using block characters - each letter is 5 lines tall
+	sArt := []string{
+		"█████",
+		"█    ",
+		"█████",
+		"    █",
+		"█████",
+	}
+	
+	pArt := []string{
+		"█████",
+		"█   █",
+		"█████",
+		"█    ",
+		"█    ",
+	}
+	
+	lArt := []string{
+		"█    ",
+		"█    ",
+		"█    ",
+		"█    ",
+		"█████",
+	}
+	
+	aArt := []string{
+		" ███ ",
+		"█   █",
+		"█████",
+		"█   █",
+		"█   █",
+	}
+	
+	s2Art := []string{
+		"█████",
+		"█    ",
+		"█████",
+		"    █",
+		"█████",
+	}
+	
+	hArt := []string{
+		"█   █",
+		"█   █",
+		"█████",
+		"█   █",
+		"█   █",
+	}
+	
+	// Combine all letters with colors
+	var lines []string
+	for i := 0; i < 5; i++ {
+		line := "  " +
+			theme.Error.Render(sArt[i]) + " " +      // Red
+			theme.Warning.Render(pArt[i]) + " " +    // Yellow
+			theme.Info.Render(lArt[i]) + " " +       // Cyan
+			theme.StatusOK.Render(aArt[i]) + " " +   // Green
+			theme.IP.Render(s2Art[i]) + " " +        // Blue
+			theme.Method.Render(hArt[i])             // Pink
+		lines = append(lines, line)
+	}
+	
+	header := "\n"
+	for _, line := range lines {
+		header += line + "\n"
+	}
+	
+	subtitle := lipgloss.NewStyle().
+		Bold(true).
+		Render("  Add color to your logs")
+		
+	return header + "\n" + subtitle + "\n"
+}
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "splash",
 	Short: "Add color to your logs",
-	Long:  "Add color to your logs",
+	Long:  createSplashHeader() + "\nSplash streams logs from stdin to stdout, auto-detecting well-known log formats\nand adding colors to make them easier to parse and scan.\n\nSupported formats: JSON, Logfmt, Syslog, Apache, Nginx, Rails, Docker,\nKubernetes, Heroku, Go standard logs, and more.\n\nExamples:\n  tail -f /var/log/app.log | splash\n  docker logs mycontainer | splash\n  kubectl logs pod-name | splash -s \"ERROR\"\n  cat access.log | splash -r \"[45]\\d\\d\"",
 	Run: func(cmd *cobra.Command, args []string) {
 		runSplash()
 	},
@@ -105,8 +184,8 @@ func runSplash() {
 
 func init() {
 	// Search flags
-	rootCmd.Flags().StringVarP(&searchPattern, "search", "s", "", "Search for literal string in log lines and highlight matches")
-	rootCmd.Flags().StringVarP(&regexPattern, "regexp", "r", "", "Search for regular expression pattern in log lines and highlight matches")
+	rootCmd.Flags().StringVarP(&searchPattern, "search", "s", "", "highlight matching text in a log line")
+	rootCmd.Flags().StringVarP(&regexPattern, "regexp", "r", "", "highlight text that matches a regexp per log line")
 }
 
 

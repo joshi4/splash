@@ -54,46 +54,46 @@ type ColorTheme struct {
 // NewAdaptiveTheme creates a color theme that adapts to the terminal
 func NewAdaptiveTheme() *ColorTheme {
 	return &ColorTheme{
-		// Log levels with semantic colors
-		Error:   lipgloss.NewStyle().Foreground(lipgloss.Color("#FF6B6B")).Bold(true), // Red
-		Warning: lipgloss.NewStyle().Foreground(lipgloss.Color("#FFE66D")),             // Yellow
-		Info:    lipgloss.NewStyle().Foreground(lipgloss.Color("#4ECDC4")),             // Cyan
-		Debug:   lipgloss.NewStyle().Foreground(lipgloss.Color("#95E1D3")),             // Light green
+		// Log levels with semantic colors using adaptive ANSI colors
+		Error:   lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#D63031", Dark: "#FF6B6B"}).Bold(true), // Red
+		Warning: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#E17000", Dark: "#FFE66D"}),             // Yellow
+		Info:    lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#00B894", Dark: "#4ECDC4"}),             // Cyan
+		Debug:   lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#00A085", Dark: "#95E1D3"}),             // Light green
 		
 		// HTTP status codes
-		StatusOK:    lipgloss.NewStyle().Foreground(lipgloss.Color("#6BCF7F")),         // Green
-		StatusWarn:  lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD93D")),         // Yellow
-		StatusError: lipgloss.NewStyle().Foreground(lipgloss.Color("#FF6B6B")).Bold(true), // Red
+		StatusOK:    lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#00B894", Dark: "#6BCF7F"}),         // Green
+		StatusWarn:  lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#E17000", Dark: "#FFD93D"}),         // Yellow
+		StatusError: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#D63031", Dark: "#FF6B6B"}).Bold(true), // Red
 		
 		// General components
-		Timestamp: lipgloss.NewStyle().Foreground(lipgloss.Color("#A8A8A8")),           // Gray
-		IP:        lipgloss.NewStyle().Foreground(lipgloss.Color("#74B9FF")),           // Blue
-		URL:       lipgloss.NewStyle().Foreground(lipgloss.Color("#81ECEC")).Underline(true), // Cyan underlined
-		Method:    lipgloss.NewStyle().Foreground(lipgloss.Color("#FD79A8")).Bold(true), // Pink
+		Timestamp: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#636E72", Dark: "#A8A8A8"}),           // Gray
+		IP:        lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0984E3", Dark: "#74B9FF"}),           // Blue
+		URL:       lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#00CEC9", Dark: "#81ECEC"}).Underline(true), // Cyan underlined
+		Method:    lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#E84393", Dark: "#FD79A8"}).Bold(true), // Pink
 		
 		// JSON/structured data
-		JSONKey:    lipgloss.NewStyle().Foreground(lipgloss.Color("#DDA0DD")),          // Plum
-		JSONValue:  lipgloss.NewStyle().Foreground(lipgloss.Color("#F0F0F0")),          // Light gray
-		JSONString: lipgloss.NewStyle().Foreground(lipgloss.Color("#98FB98")),          // Pale green
-		JSONNumber: lipgloss.NewStyle().Foreground(lipgloss.Color("#87CEEB")),          // Sky blue
+		JSONKey:    lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8E44AD", Dark: "#DDA0DD"}),          // Plum
+		JSONValue:  lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#2D3436", Dark: "#F0F0F0"}),          // Light gray
+		JSONString: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#00A085", Dark: "#98FB98"}),          // Pale green
+		JSONNumber: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0984E3", Dark: "#87CEEB"}),          // Sky blue
 		
 		// Logfmt
-		LogfmtKey:   lipgloss.NewStyle().Foreground(lipgloss.Color("#DDA0DD")),         // Plum
-		LogfmtValue: lipgloss.NewStyle().Foreground(lipgloss.Color("#F0F0F0")),         // Light gray
+		LogfmtKey:   lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8E44AD", Dark: "#DDA0DD"}),         // Plum
+		LogfmtValue: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#2D3436", Dark: "#F0F0F0"}),         // Light gray
 		
 		// System/process info
-		Hostname: lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB347")),            // Peach
-		PID:      lipgloss.NewStyle().Foreground(lipgloss.Color("#B19CD9")),            // Lavender
-		Service:  lipgloss.NewStyle().Foreground(lipgloss.Color("#87CEEB")).Bold(true), // Sky blue
+		Hostname: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#E17000", Dark: "#FFB347"}),            // Peach
+		PID:      lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#6C5CE7", Dark: "#B19CD9"}),            // Lavender
+		Service:  lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0984E3", Dark: "#87CEEB"}).Bold(true), // Sky blue
 		
 		// File references
-		Filename: lipgloss.NewStyle().Foreground(lipgloss.Color("#FFA07A")),            // Light salmon
-		LineNum:  lipgloss.NewStyle().Foreground(lipgloss.Color("#B19CD9")),            // Lavender
+		Filename: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#E17000", Dark: "#FFA07A"}),            // Light salmon
+		LineNum:  lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#6C5CE7", Dark: "#B19CD9"}),            // Lavender
 		
 		// Punctuation/structure (subtle)
-		Bracket: lipgloss.NewStyle().Foreground(lipgloss.Color("#808080")),             // Gray
-		Quote:   lipgloss.NewStyle().Foreground(lipgloss.Color("#808080")),             // Gray
-		Equals:  lipgloss.NewStyle().Foreground(lipgloss.Color("#808080")),             // Gray
+		Bracket: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#636E72", Dark: "#808080"}),             // Gray
+		Quote:   lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#636E72", Dark: "#808080"}),             // Gray
+		Equals:  lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#636E72", Dark: "#808080"}),             // Gray
 		
 		// Search highlighting (bold text, no background)
 		SearchHighlight: lipgloss.NewStyle().
