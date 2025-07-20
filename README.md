@@ -1,16 +1,5 @@
-<div align="center">
+![Splash Logo](splash_logo.svg)
 
-<pre>
-  <span style="color:#FF6B6B">█████</span> <span style="color:#FFE66D">█████</span> <span style="color:#4ECDC4">█    </span> <span style="color:#6BCF7F"> ███ </span> <span style="color:#74B9FF">█████</span> <span style="color:#FD79A8">█   █</span>
-  <span style="color:#FF6B6B">█    </span> <span style="color:#FFE66D">█   █</span> <span style="color:#4ECDC4">█    </span> <span style="color:#6BCF7F">█   █</span> <span style="color:#74B9FF">█    </span> <span style="color:#FD79A8">█   █</span>
-  <span style="color:#FF6B6B">█████</span> <span style="color:#FFE66D">█████</span> <span style="color:#4ECDC4">█    </span> <span style="color:#6BCF7F">█████</span> <span style="color:#74B9FF">█████</span> <span style="color:#FD79A8">█████</span>
-  <span style="color:#FF6B6B">    █</span> <span style="color:#FFE66D">█    </span> <span style="color:#4ECDC4">█    </span> <span style="color:#6BCF7F">█   █</span> <span style="color:#74B9FF">    █</span> <span style="color:#FD79A8">█   █</span>
-  <span style="color:#FF6B6B">█████</span> <span style="color:#FFE66D">█    </span> <span style="color:#4ECDC4">█████</span> <span style="color:#6BCF7F">█   █</span> <span style="color:#74B9FF">█████</span> <span style="color:#FD79A8">█   █</span>
-</pre>
-
-**Add color to your logs**
-
-</div>
 
 Splash is a CLI tool that automatically detects log formats and adds beautiful, adaptive colors to make logs easier to read and parse. Perfect for developers who spend time analyzing logs but find plain text hard to scan.
 

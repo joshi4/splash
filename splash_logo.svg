@@ -1,0 +1,51 @@
+<svg width="600" height="200" viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .letter { font-family: 'Courier New', monospace; font-weight: bold; font-size: 72px; }
+      .tagline { font-family: 'Courier New', monospace; font-size: 18px; fill: #ffffff; }
+    </style>
+  </defs>
+  
+  <!-- Dark background -->
+  <rect width="600" height="200" fill="#2d3748"/>
+  
+  <!-- S - Coral/Pink -->
+  <text x="40" y="120" class="letter" fill="#ff6b6b">S</text>
+  
+  <!-- P - Yellow -->
+  <text x="90" y="120" class="letter" fill="#ffd93d">P</text>
+  
+  <!-- L - Teal -->
+  <text x="140" y="120" class="letter" fill="#4ecdc4">L</text>
+  
+  <!-- A - Green -->
+  <text x="190" y="120" class="letter" fill="#51cf66">A</text>
+  
+  <!-- S - Blue -->
+  <text x="240" y="120" class="letter" fill="#74c0fc">S</text>
+  
+  <!-- H - Purple -->
+  <text x="290" y="120" class="letter" fill="#b197fc">H</text>
+  
+  <!-- Tagline -->
+  <text x="40" y="160" class="tagline">Add color to your logs</text>
+  
+  <!-- Decorative splash dots -->
+  <circle cx="380" cy="50" r="8" fill="#ff6b6b" opacity="0.7"/>
+  <circle cx="420" cy="35" r="6" fill="#ffd93d" opacity="0.8"/>
+  <circle cx="450" cy="60" r="5" fill="#4ecdc4" opacity="0.6"/>
+  <circle cx="480" cy="40" r="7" fill="#51cf66" opacity="0.7"/>
+  <circle cx="510" cy="70" r="4" fill="#74c0fc" opacity="0.8"/>
+  <circle cx="540" cy="45" r="6" fill="#b197fc" opacity="0.6"/>
+  
+  <circle cx="400" cy="120" r="3" fill="#ff6b6b" opacity="0.5"/>
+  <circle cx="430" cy="135" r="4" fill="#ffd93d" opacity="0.6"/>
+  <circle cx="460" cy="110" r="5" fill="#4ecdc4" opacity="0.7"/>
+  <circle cx="490" cy="125" r="3" fill="#51cf66" opacity="0.8"/>
+  <circle cx="520" cy="115" r="4" fill="#74c0fc" opacity="0.6"/>
+  
+  <!-- Additional small splashes -->
+  <circle cx="350" cy="80" r="2" fill="#ff6b6b" opacity="0.4"/>
+  <circle cx="370" cy="90" r="3" fill="#ffd93d" opacity="0.5"/>
+  <circle cx="550" cy="90" r="2" fill="#b197fc" opacity="0.4"/>
+</svg>
