@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/joshi4/splash/parser"
 	"github.com/spf13/cobra"
 )
 
@@ -52,6 +53,9 @@ func runSplash() {
 		cancel()
 	}()
 
+	// Create optimized parser
+	logParser := parser.NewParser()
+
 	// Read from stdin and write to stdout
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
@@ -60,6 +64,10 @@ func runSplash() {
 			return
 		default:
 			line := scanner.Text()
+			// Detect log format for this line using optimized parser
+			format := logParser.DetectFormat(line)
+			// For now, just output the line (format detection is ready for future use)
+			_ = format
 			fmt.Println(line)
 		}
 	}
