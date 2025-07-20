@@ -161,24 +161,38 @@ func runSplash() {
 
 	// Read from stdin and write to stdout
 	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			line := scanner.Text()
-			// Detect log format for this line using optimized parser
-			format := logParser.DetectFormat(line)
-			// Apply colors based on detected format
-			colorizedLine := logColorizer.ColorizeLog(line, format)
-			fmt.Println(colorizedLine)
+	
+	// Channel to signal when reading is done
+	done := make(chan bool)
+	
+	go func() {
+		defer close(done)
+		for scanner.Scan() {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				line := scanner.Text()
+				// Detect log format for this line using optimized parser
+				format := logParser.DetectFormat(line)
+				// Apply colors based on detected format
+				colorizedLine := logColorizer.ColorizeLog(line, format)
+				fmt.Println(colorizedLine)
+			}
 		}
-	}
-
-	// Check for scanner errors
-	if err := scanner.Err(); err != nil && err != io.EOF {
-		fmt.Fprintf(os.Stderr, "Error reading from stdin: %v\n", err)
-		os.Exit(1)
+		
+		// Check for scanner errors
+		if err := scanner.Err(); err != nil && err != io.EOF {
+			fmt.Fprintf(os.Stderr, "Error reading from stdin: %v\n", err)
+		}
+	}()
+	
+	// Wait for either the context to be cancelled or reading to complete
+	select {
+	case <-ctx.Done():
+		return
+	case <-done:
+		return
 	}
 }
 
