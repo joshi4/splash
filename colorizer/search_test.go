@@ -1,12 +1,19 @@
 package colorizer
 
 import (
+	"encoding/json"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/joshi4/splash/parser"
 )
+
+// stripTestAnsiCodes removes ANSI escape codes for testing purposes
+func stripTestAnsiCodes(text string) string {
+	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	return ansiRegex.ReplaceAllString(text, "")
+}
 
 func TestSearchFunctionality(t *testing.T) {
 	c := NewColorizer()
@@ -215,6 +222,101 @@ func TestHerokuSearchMarkersNotLeftInOutput(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestJSONSinglePassSearchHighlighting verifies that JSON search highlighting works in a single pass
+func TestJSONSinglePassSearchHighlighting(t *testing.T) {
+	c := NewColorizer()
+	
+	tests := []struct {
+		name       string
+		line       string
+		searchTerm string
+		expectMatch bool
+	}{
+		{
+			name:        "Value highlighting in single pass",
+			line:        `{"level":"ERROR","message":"Database failed"}`,
+			searchTerm:  "ERROR",
+			expectMatch: true,
+		},
+		{
+			name:        "Key highlighting in single pass", 
+			line:        `{"error_code":"E123","status":"ok"}`,
+			searchTerm:  "error",
+			expectMatch: true,
+		},
+		{
+			name:        "Nested value highlighting",
+			line:        `{"data":{"status":"ERROR","user":"admin"}}`,
+			searchTerm:  "ERROR",
+			expectMatch: true,
+		},
+		{
+			name:        "Nested key highlighting",
+			line:        `{"data":{"error_count":5,"user":"admin"}}`,
+			searchTerm:  "error",
+			expectMatch: true,
+		},
+		{
+			name:        "No match should not highlight",
+			line:        `{"level":"INFO","message":"All good"}`,
+			searchTerm:  "ERROR",
+			expectMatch: false,
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c.SetSearchString(tt.searchTerm)
+			result := c.ColorizeLog(tt.line, parser.JSONFormat)
+			
+			// The result should contain the search term
+			if !strings.Contains(result, tt.searchTerm) && tt.expectMatch {
+				t.Errorf("Expected search term '%s' to be present in result for line: %s\nResult: %s", 
+					tt.searchTerm, tt.line, result)
+			}
+			
+			// Should not contain search markers
+			if strings.Contains(result, "⟦SEARCH_START⟧") || strings.Contains(result, "⟦SEARCH_END⟧") {
+				t.Errorf("Found search markers in single-pass result for line: %s\nResult: %s", tt.line, result)
+			}
+			
+			// JSON structure should remain valid (can be parsed after removing ANSI codes)
+			stripped := stripTestAnsiCodes(result)
+			var testData interface{}
+			if err := json.Unmarshal([]byte(stripped), &testData); err != nil {
+				t.Errorf("Result is not valid JSON after stripping ANSI codes: %v\nResult: %s\nStripped: %s", 
+					err, result, stripped)
+			}
+		})
+	}
+}
+
+// TestJSONSearchRegexSinglePass verifies that regex search works in single pass for JSON
+func TestJSONSearchRegexSinglePass(t *testing.T) {
+	c := NewColorizer()
+	c.SetSearchRegex("ERR.*")
+	
+	line := `{"level":"ERROR","message":"Everything is working"}`
+	result := c.ColorizeLog(line, parser.JSONFormat)
+	
+	// Should contain the matched pattern
+	if !strings.Contains(result, "ERROR") {
+		t.Errorf("Expected regex match 'ERROR' to be present in result\nResult: %s", result)
+	}
+	
+	// Should not contain search markers
+	if strings.Contains(result, "⟦SEARCH_START⟧") || strings.Contains(result, "⟦SEARCH_END⟧") {
+		t.Errorf("Found search markers in single-pass regex result\nResult: %s", result)
+	}
+	
+	// JSON should remain valid
+	stripped := stripTestAnsiCodes(result)
+	var testData interface{}
+	if err := json.Unmarshal([]byte(stripped), &testData); err != nil {
+		t.Errorf("Result is not valid JSON after regex highlighting: %v\nStripped: %s", err, stripped)
 	}
 }
 
