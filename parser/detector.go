@@ -344,7 +344,7 @@ func (d *GoStandardDetector) PatternLength() int {
 
 type RailsDetector struct{}
 
-const railsPattern = `^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] \w+ --`
+const railsPattern = `^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] \w+( --|  \w)`
 var railsRegex = regexp.MustCompile(railsPattern)
 
 func (d *RailsDetector) Detect(ctx context.Context, line string) bool {

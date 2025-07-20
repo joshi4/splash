@@ -76,6 +76,10 @@ func (c *Colorizer) ColorizeLog(line string, format parser.LogFormat) string {
 	case parser.HerokuFormat:
 		return c.colorizeHeroku(line)
 	default:
+		// For unknown formats, still apply search highlighting if there's a match
+		if c.matchesSearch(line) {
+			return c.simpleSearchHighlight(line, line)
+		}
 		return line // No coloring for unknown formats
 	}
 }
@@ -377,30 +381,54 @@ func (c *Colorizer) colorizeGoStandard(line string) string {
 
 func (c *Colorizer) colorizeRails(line string) string {
 	// Rails format: "[2025-01-19 10:30:00] ERROR -- : Database connection failed"
-	re := regexp.MustCompile(`^(\[[^\]]+\]) (\w+) (--) : (.*)`)
-	matches := re.FindStringSubmatch(line)
+	// WEBrick format: "[2025-01-19 10:30:00] INFO  WEBrick 1.4.4"
 	
-	if len(matches) != 5 {
-		return c.colorizeGenericLog(line)
+	// Try Rails format first
+	railsRe := regexp.MustCompile(`^(\[[^\]]+\]) (\w+) (--) : (.*)`)
+	matches := railsRe.FindStringSubmatch(line)
+	
+	if len(matches) == 5 {
+		timestamp := matches[1]
+		level := matches[2]
+		separator := matches[3]
+		message := matches[4]
+		
+		result := strings.Builder{}
+		result.WriteString(c.theme.Bracket.Render("["))
+		timestampContent := timestamp[1:len(timestamp)-1] // Remove brackets
+		result.WriteString(c.applyStyleWithMarkers(timestampContent, c.theme.Timestamp))
+		result.WriteString(c.theme.Bracket.Render("] "))
+		result.WriteString(c.applyStyleWithMarkers(level, c.theme.GetLogLevelStyle(level)))
+		result.WriteString(" ")
+		result.WriteString(separator)
+		result.WriteString(" : ")
+		result.WriteString(message)
+		
+		return result.String()
 	}
 	
-	timestamp := matches[1]
-	level := matches[2]
-	separator := matches[3]
-	message := matches[4]
+	// Try WEBrick format
+	webrickRe := regexp.MustCompile(`^(\[[^\]]+\]) (\w+)\s+(.*)`)
+	matches = webrickRe.FindStringSubmatch(line)
 	
-	result := strings.Builder{}
-	result.WriteString(c.theme.Bracket.Render("["))
-	timestampContent := timestamp[1:len(timestamp)-1] // Remove brackets
-	result.WriteString(c.applyStyleWithMarkers(timestampContent, c.theme.Timestamp))
-	result.WriteString(c.theme.Bracket.Render("] "))
-	result.WriteString(c.applyStyleWithMarkers(level, c.theme.GetLogLevelStyle(level)))
-	result.WriteString(" ")
-	result.WriteString(separator)
-	result.WriteString(" : ")
-	result.WriteString(message)
+	if len(matches) == 4 {
+		timestamp := matches[1]
+		level := matches[2]
+		message := matches[3]
+		
+		result := strings.Builder{}
+		result.WriteString(c.theme.Bracket.Render("["))
+		timestampContent := timestamp[1:len(timestamp)-1] // Remove brackets
+		result.WriteString(c.applyStyleWithMarkers(timestampContent, c.theme.Timestamp))
+		result.WriteString(c.theme.Bracket.Render("] "))
+		result.WriteString(c.applyStyleWithMarkers(level, c.theme.GetLogLevelStyle(level)))
+		result.WriteString(" ")
+		result.WriteString(c.applyStyleWithMarkers(message, c.theme.JSONValue))
+		
+		return result.String()
+	}
 	
-	return result.String()
+	return c.colorizeGenericLog(line)
 }
 
 func (c *Colorizer) colorizeDocker(line string) string {
@@ -541,13 +569,23 @@ func (c *Colorizer) colorizeGenericLog(line string) string {
 	return result.String()
 }
 
-// matchesSearch checks if a line matches the current search pattern
+// stripAnsiCodes removes ANSI escape sequences from text
+func (c *Colorizer) stripAnsiCodes(text string) string {
+	// ANSI escape sequence pattern: \033[...m or \x1b[...m
+	ansiRegex := regexp.MustCompile(`\033\[[0-9;]*m|\x1b\[[0-9;]*m`)
+	return ansiRegex.ReplaceAllString(text, "")
+}
+
+// matchesSearch checks if a line matches the current search pattern (ignoring ANSI codes)
 func (c *Colorizer) matchesSearch(line string) bool {
+	// Strip ANSI codes before checking for matches
+	cleanLine := c.stripAnsiCodes(line)
+	
 	if c.searchRegex != nil {
-		return c.searchRegex.MatchString(line)
+		return c.searchRegex.MatchString(cleanLine)
 	}
 	if c.searchString != "" {
-		return strings.Contains(line, c.searchString)
+		return strings.Contains(cleanLine, c.searchString)
 	}
 	return false
 }
@@ -589,9 +627,12 @@ func (c *Colorizer) applySearchHighlight(line string, format parser.LogFormat) s
 func (c *Colorizer) simpleSearchHighlight(colorizedText, originalText string) string {
 	var searchTexts []string
 	
+	// Strip ANSI codes from original text before finding matches
+	cleanOriginalText := c.stripAnsiCodes(originalText)
+	
 	if c.searchRegex != nil {
-		// Find all regex matches in the original text
-		matches := c.searchRegex.FindAllString(originalText, -1)
+		// Find all regex matches in the clean original text
+		matches := c.searchRegex.FindAllString(cleanOriginalText, -1)
 		searchTexts = matches
 	} else if c.searchString != "" {
 		searchTexts = []string{c.searchString}
@@ -615,24 +656,34 @@ func (c *Colorizer) simpleSearchHighlight(colorizedText, originalText string) st
 	return result
 }
 
-// highlightTextPreservingColors highlights search text while preserving existing colors
+// highlightTextPreservingColors highlights all occurrences of search text while preserving existing colors
 func (c *Colorizer) highlightTextPreservingColors(colorizedText, searchText string) string {
-	result := colorizedText
+	if searchText == "" {
+		return colorizedText
+	}
+	
+	result := ""
+	remaining := colorizedText
 	
 	for {
 		// Find the next occurrence of the search text
-		pos := strings.Index(result, searchText)
+		pos := strings.Index(remaining, searchText)
 		if pos == -1 {
+			// No more matches, append remaining text and break
+			result += remaining
 			break
 		}
 		
 		// Extract parts: before match, match, after match
-		before := result[:pos]
-		match := result[pos:pos+len(searchText)]
-		after := result[pos+len(searchText):]
+		before := remaining[:pos]
+		match := remaining[pos:pos+len(searchText)]
+		after := remaining[pos+len(searchText):]
 		
-		// Extract the active color context before the match
-		activeColor := c.extractActiveColorFromBefore(before)
+		// Add the text before the match
+		result += before
+		
+		// Extract the active color context from the accumulated result
+		activeColor := c.extractActiveColorFromBefore(result)
 		
 		// Create highlighted version that preserves the original color
 		var highlightedMatch string
@@ -644,29 +695,16 @@ func (c *Colorizer) highlightTextPreservingColors(colorizedText, searchText stri
 			highlightedMatch = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("#4A4A4A")).Render(match)
 		}
 		
-		// Reconstruct the string with the highlighted match
-		result = before + highlightedMatch
+		// Add the highlighted match
+		result += highlightedMatch
 		
-		// If there was an active color, we need to restore it for the text after
+		// If there was an active color, we need to restore it for subsequent text
 		if activeColor != "" && after != "" {
-			// Add the color code back before the remaining text
-			result += activeColor + after
-		} else {
-			result += after
+			result += activeColor
 		}
 		
-		// Move past this match to find the next one
-		// We need to account for the fact that the highlighted version is longer
-		searchStart := len(before) + len(highlightedMatch)
-		if activeColor != "" {
-			searchStart += len(activeColor)
-		}
-		if searchStart >= len(result) {
-			break
-		}
-		result = result[:searchStart] + strings.Replace(result[searchStart:], searchText, "PLACEHOLDER_ALREADY_PROCESSED", 1)
-		result = strings.Replace(result, "PLACEHOLDER_ALREADY_PROCESSED", searchText, 1)
-		break // Process one at a time to avoid infinite loops
+		// Continue with the remaining text after this match
+		remaining = after
 	}
 	
 	return result
