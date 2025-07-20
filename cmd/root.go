@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 	"github.com/joshi4/splash/colorizer"
 	"github.com/joshi4/splash/parser"
 	"github.com/spf13/cobra"
@@ -124,6 +125,10 @@ func Execute() {
 
 // runSplash is the main function that reads from stdin and writes to stdout
 func runSplash() {
+	// Force color output even when stdout is not a TTY (when piping output)
+	// This ensures colors work when doing: echo "log" | splash | less -R
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	
 	// Create a context that will be cancelled when we receive a signal
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
