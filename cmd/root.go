@@ -18,6 +18,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Command flags
+var (
+	searchPattern string
+	regexPattern  string
+)
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "splash",
@@ -57,6 +63,22 @@ func runSplash() {
 	// Create optimized parser and colorizer
 	logParser := parser.NewParser()
 	logColorizer := colorizer.NewColorizer()
+	
+	// Set search patterns if provided
+	if searchPattern != "" && regexPattern != "" {
+		fmt.Fprintf(os.Stderr, "Cannot use both --search and --regexp flags simultaneously\n")
+		os.Exit(1)
+	}
+	
+	if searchPattern != "" {
+		logColorizer.SetSearchString(searchPattern)
+	} else if regexPattern != "" {
+		err := logColorizer.SetSearchRegex(regexPattern)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid regex pattern: %v\n", err)
+			os.Exit(1)
+		}
+	}
 
 	// Read from stdin and write to stdout
 	scanner := bufio.NewScanner(os.Stdin)
@@ -82,15 +104,9 @@ func runSplash() {
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.splash.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Search flags
+	rootCmd.Flags().StringVarP(&searchPattern, "search", "s", "", "Search for literal string in log lines and highlight matches")
+	rootCmd.Flags().StringVarP(&regexPattern, "regexp", "r", "", "Search for regular expression pattern in log lines and highlight matches")
 }
 
 

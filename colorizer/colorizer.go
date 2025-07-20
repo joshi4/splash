@@ -6,12 +6,15 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/joshi4/splash/parser"
 )
 
 // Colorizer handles adding colors to log lines based on their format
 type Colorizer struct {
-	theme *ColorTheme
+	theme         *ColorTheme
+	searchString  string
+	searchRegex   *regexp.Regexp
 }
 
 // NewColorizer creates a new colorizer with adaptive theming
@@ -21,10 +24,33 @@ func NewColorizer() *Colorizer {
 	}
 }
 
+// SetSearchString sets a literal string to search for and highlight
+func (c *Colorizer) SetSearchString(pattern string) {
+	c.searchString = pattern
+	c.searchRegex = nil
+}
+
+// SetSearchRegex sets a regular expression to search for and highlight
+func (c *Colorizer) SetSearchRegex(pattern string) error {
+	regex, err := regexp.Compile(pattern)
+	if err != nil {
+		return err
+	}
+	c.searchRegex = regex
+	c.searchString = ""
+	return nil
+}
+
 // ColorizeLog applies colors to a log line based on its detected format
 func (c *Colorizer) ColorizeLog(line string, format parser.LogFormat) string {
 	if line == "" {
 		return line
+	}
+
+	// Check if this line matches the search pattern
+	if c.matchesSearch(line) {
+		// Apply search highlighting to the entire line
+		return c.applySearchHighlight(line, format)
 	}
 
 	switch format {
@@ -97,15 +123,19 @@ func (c *Colorizer) colorizeJSONValue(key string, value interface{}) string {
 	case string:
 		// Special handling for known fields
 		if c.isLogLevelKey(key) {
-			return c.theme.Quote.Render(`"`) + c.theme.GetLogLevelStyle(v).Render(v) + c.theme.Quote.Render(`"`)
+			styledValue := c.applyStyleWithMarkers(v, c.theme.GetLogLevelStyle(v))
+			return c.theme.Quote.Render(`"`) + styledValue + c.theme.Quote.Render(`"`)
 		}
 		if c.isTimestampKey(key) {
-			return c.theme.Quote.Render(`"`) + c.theme.Timestamp.Render(v) + c.theme.Quote.Render(`"`)
+			styledValue := c.applyStyleWithMarkers(v, c.theme.Timestamp)
+			return c.theme.Quote.Render(`"`) + styledValue + c.theme.Quote.Render(`"`)
 		}
 		if c.isServiceKey(key) {
-			return c.theme.Quote.Render(`"`) + c.theme.Service.Render(v) + c.theme.Quote.Render(`"`)
+			styledValue := c.applyStyleWithMarkers(v, c.theme.Service)
+			return c.theme.Quote.Render(`"`) + styledValue + c.theme.Quote.Render(`"`)
 		}
-		return c.theme.Quote.Render(`"`) + c.theme.JSONString.Render(v) + c.theme.Quote.Render(`"`)
+		styledValue := c.applyStyleWithMarkers(v, c.theme.JSONString)
+		return c.theme.Quote.Render(`"`) + styledValue + c.theme.Quote.Render(`"`)
 	case float64:
 		return c.theme.JSONNumber.Render(fmt.Sprintf("%g", v))
 	case bool:
@@ -152,17 +182,22 @@ func (c *Colorizer) colorizeLogfmt(line string) string {
 				if c.isLogLevelKey(key) {
 					if strings.HasPrefix(value, `"`) && strings.HasSuffix(value, `"`) {
 						result.WriteString(c.theme.Quote.Render(`"`))
-						result.WriteString(c.theme.GetLogLevelStyle(cleanValue).Render(cleanValue))
+						styledValue := c.applyStyleWithMarkers(cleanValue, c.theme.GetLogLevelStyle(cleanValue))
+						result.WriteString(styledValue)
 						result.WriteString(c.theme.Quote.Render(`"`))
 					} else {
-						result.WriteString(c.theme.GetLogLevelStyle(cleanValue).Render(value))
+						styledValue := c.applyStyleWithMarkers(value, c.theme.GetLogLevelStyle(cleanValue))
+						result.WriteString(styledValue)
 					}
 				} else if c.isTimestampKey(key) {
-					result.WriteString(c.theme.Timestamp.Render(value))
+					styledValue := c.applyStyleWithMarkers(value, c.theme.Timestamp)
+					result.WriteString(styledValue)
 				} else if c.isServiceKey(key) {
-					result.WriteString(c.theme.Service.Render(value))
+					styledValue := c.applyStyleWithMarkers(value, c.theme.Service)
+					result.WriteString(styledValue)
 				} else {
-					result.WriteString(c.theme.LogfmtValue.Render(value))
+					styledValue := c.applyStyleWithMarkers(value, c.theme.LogfmtValue)
+					result.WriteString(styledValue)
 				}
 			} else {
 				result.WriteString(part)
@@ -199,19 +234,19 @@ func (c *Colorizer) colorizeApacheCommon(line string) string {
 	size := matches[9]
 	
 	result := strings.Builder{}
-	result.WriteString(c.theme.IP.Render(ip))
+	result.WriteString(c.applyStyleWithMarkers(ip, c.theme.IP))
 	result.WriteString(" - - ")
 	result.WriteString(c.theme.Bracket.Render("["))
-	result.WriteString(c.theme.Timestamp.Render(timestamp))
+	result.WriteString(c.applyStyleWithMarkers(timestamp, c.theme.Timestamp))
 	result.WriteString(c.theme.Bracket.Render("] "))
 	result.WriteString(c.theme.Quote.Render(`"`))
-	result.WriteString(c.theme.Method.Render(method))
+	result.WriteString(c.applyStyleWithMarkers(method, c.theme.Method))
 	result.WriteString(" ")
-	result.WriteString(c.theme.URL.Render(url))
+	result.WriteString(c.applyStyleWithMarkers(url, c.theme.URL))
 	result.WriteString(" ")
 	result.WriteString(protocol)
 	result.WriteString(c.theme.Quote.Render(`" `))
-	result.WriteString(c.theme.GetHTTPStatusStyle(status).Render(status))
+	result.WriteString(c.applyStyleWithMarkers(status, c.theme.GetHTTPStatusStyle(status)))
 	result.WriteString(" ")
 	result.WriteString(size)
 	
@@ -304,13 +339,13 @@ func (c *Colorizer) colorizeSyslog(line string) string {
 	message := matches[5]
 	
 	result := strings.Builder{}
-	result.WriteString(c.theme.Timestamp.Render(timestamp))
+	result.WriteString(c.applyStyleWithMarkers(timestamp, c.theme.Timestamp))
 	result.WriteString(" ")
-	result.WriteString(c.theme.Hostname.Render(hostname))
+	result.WriteString(c.applyStyleWithMarkers(hostname, c.theme.Hostname))
 	result.WriteString(" ")
-	result.WriteString(c.theme.Service.Render(process))
+	result.WriteString(c.applyStyleWithMarkers(process, c.theme.Service))
 	result.WriteString(c.theme.Bracket.Render("["))
-	result.WriteString(c.theme.PID.Render(pid))
+	result.WriteString(c.applyStyleWithMarkers(pid, c.theme.PID))
 	result.WriteString(c.theme.Bracket.Render("]: "))
 	result.WriteString(c.colorizeMessage(message))
 	
@@ -330,7 +365,7 @@ func (c *Colorizer) colorizeGoStandard(line string) string {
 	message := matches[2]
 	
 	result := strings.Builder{}
-	result.WriteString(c.theme.Timestamp.Render(timestamp))
+	result.WriteString(c.applyStyleWithMarkers(timestamp, c.theme.Timestamp))
 	result.WriteString(" ")
 	result.WriteString(c.colorizeMessage(message))
 	
@@ -455,10 +490,12 @@ func (c *Colorizer) colorizeMessage(message string) string {
 	if c.looksLikeLogLevel(cleanWord) {
 		result := strings.Builder{}
 		if strings.HasSuffix(firstWord, ":") {
-			result.WriteString(c.theme.GetLogLevelStyle(cleanWord).Render(cleanWord))
+			styledLevel := c.applyStyleWithMarkers(cleanWord, c.theme.GetLogLevelStyle(cleanWord))
+			result.WriteString(styledLevel)
 			result.WriteString(":")
 		} else {
-			result.WriteString(c.theme.GetLogLevelStyle(cleanWord).Render(cleanWord))
+			styledLevel := c.applyStyleWithMarkers(cleanWord, c.theme.GetLogLevelStyle(cleanWord))
+			result.WriteString(styledLevel)
 		}
 		
 		if len(parts) > 1 {
@@ -496,4 +533,146 @@ func (c *Colorizer) colorizeGenericLog(line string) string {
 	}
 	
 	return result.String()
+}
+
+// matchesSearch checks if a line matches the current search pattern
+func (c *Colorizer) matchesSearch(line string) bool {
+	if c.searchRegex != nil {
+		return c.searchRegex.MatchString(line)
+	}
+	if c.searchString != "" {
+		return strings.Contains(line, c.searchString)
+	}
+	return false
+}
+
+// applySearchHighlight applies prominent highlighting to matching lines
+func (c *Colorizer) applySearchHighlight(line string, format parser.LogFormat) string {
+	// First, add search highlighting markers to the original line
+	lineWithMarkers := c.addSearchMarkers(line)
+	
+	// Apply normal colorization to the line with markers
+	var colorizedLine string
+	switch format {
+	case parser.JSONFormat:
+		colorizedLine = c.colorizeJSON(lineWithMarkers)
+	case parser.LogfmtFormat:
+		colorizedLine = c.colorizeLogfmt(lineWithMarkers)
+	case parser.ApacheCommonFormat:
+		colorizedLine = c.colorizeApacheCommon(lineWithMarkers)
+	case parser.NginxFormat:
+		colorizedLine = c.colorizeNginx(lineWithMarkers)
+	case parser.SyslogFormat:
+		colorizedLine = c.colorizeSyslog(lineWithMarkers)
+	case parser.GoStandardFormat:
+		colorizedLine = c.colorizeGoStandard(lineWithMarkers)
+	case parser.RailsFormat:
+		colorizedLine = c.colorizeRails(lineWithMarkers)
+	case parser.DockerFormat:
+		colorizedLine = c.colorizeDocker(lineWithMarkers)
+	case parser.KubernetesFormat:
+		colorizedLine = c.colorizeKubernetes(lineWithMarkers)
+	case parser.HerokuFormat:
+		colorizedLine = c.colorizeHeroku(lineWithMarkers)
+	default:
+		colorizedLine = lineWithMarkers
+	}
+	
+	// Convert markers to actual bold formatting
+	return c.convertMarkersToFormatting(colorizedLine)
+}
+
+// addSearchMarkers adds special markers around search matches
+func (c *Colorizer) addSearchMarkers(line string) string {
+	if c.searchRegex != nil {
+		// Replace all regex matches with marked versions
+		return c.searchRegex.ReplaceAllStringFunc(line, func(match string) string {
+			return "<<<SPLASHBOLD:" + match + ":SPLASHBOLD>>>"
+		})
+	}
+	if c.searchString != "" {
+		// Replace all string matches with marked versions
+		return strings.ReplaceAll(line, c.searchString, "<<<SPLASHBOLD:"+c.searchString+":SPLASHBOLD>>>")
+	}
+	return line
+}
+
+// convertMarkersToFormatting converts special markers to bold formatting
+func (c *Colorizer) convertMarkersToFormatting(colorizedLine string) string {
+	// Find all remaining markers and replace them with bold formatting
+	// (Timestamps are handled separately in applyTimestampStyleWithMarkers)
+	result := colorizedLine
+	for {
+		start := strings.Index(result, "<<<SPLASHBOLD:")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(result[start:], ":SPLASHBOLD>>>")
+		if end == -1 {
+			break
+		}
+		end += start + len(":SPLASHBOLD>>>") // Adjust for absolute position and include the marker
+		
+		// Extract the text between markers
+		matchText := result[start+len("<<<SPLASHBOLD:") : end-len(":SPLASHBOLD>>>")]
+		
+		// Replace the marked text with bold version
+		boldText := c.theme.SearchHighlight.Render(matchText)
+		result = result[:start] + boldText + result[end:]
+	}
+	return result
+}
+
+
+
+
+
+// applyStyleWithMarkers applies a style while preserving search markers
+func (c *Colorizer) applyStyleWithMarkers(value string, style lipgloss.Style) string {
+	// Check if the value contains search markers
+	if !strings.Contains(value, "<<<SPLASHBOLD:") {
+		// No markers, apply normal styling
+		return style.Render(value)
+	}
+	
+	// Split the value at marker boundaries and apply styling appropriately
+	result := ""
+	remaining := value
+	
+	for {
+		markerStart := strings.Index(remaining, "<<<SPLASHBOLD:")
+		if markerStart == -1 {
+			// No more markers, apply style to remaining text
+			if remaining != "" {
+				result += style.Render(remaining)
+			}
+			break
+		}
+		
+		// Apply style to text before marker
+		if markerStart > 0 {
+			result += style.Render(remaining[:markerStart])
+		}
+		
+		// Find the end of the marker
+		markerEnd := strings.Index(remaining[markerStart:], ":SPLASHBOLD>>>")
+		if markerEnd == -1 {
+			// Malformed marker, just style the rest normally
+			result += style.Render(remaining[markerStart:])
+			break
+		}
+		markerEnd += markerStart + len(":SPLASHBOLD>>>")
+		
+		// Extract the matched text from the marker
+		matchText := remaining[markerStart+len("<<<SPLASHBOLD:") : markerEnd-len(":SPLASHBOLD>>>")]
+		
+		// Combine original style with bold
+		combinedStyle := style.Bold(true)
+		result += combinedStyle.Render(matchText)
+		
+		// Continue with remaining text
+		remaining = remaining[markerEnd:]
+	}
+	
+	return result
 }

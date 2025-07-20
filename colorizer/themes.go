@@ -46,6 +46,9 @@ type ColorTheme struct {
 	Bracket lipgloss.Style
 	Quote   lipgloss.Style
 	Equals  lipgloss.Style
+	
+	// Search highlighting
+	SearchHighlight lipgloss.Style
 }
 
 // NewAdaptiveTheme creates a color theme that adapts to the terminal
@@ -91,6 +94,10 @@ func NewAdaptiveTheme() *ColorTheme {
 		Bracket: lipgloss.NewStyle().Foreground(lipgloss.Color("#808080")),             // Gray
 		Quote:   lipgloss.NewStyle().Foreground(lipgloss.Color("#808080")),             // Gray
 		Equals:  lipgloss.NewStyle().Foreground(lipgloss.Color("#808080")),             // Gray
+		
+		// Search highlighting (bold text, no background)
+		SearchHighlight: lipgloss.NewStyle().
+			Bold(true),                             // Bold for visibility
 	}
 }
 
