@@ -33,17 +33,17 @@ go build
 The easiest way to use Splash is to pipe any log output through it:
 
 ```bash
-# Colorize application logs
-tail -f /var/log/app.log | splash
+# Stream system logs (Linux/macOS)
+journalctl -f | splash
 
-# Colorize Docker container logs
-docker logs mycontainer | splash
+# Monitor network connectivity with ping
+ping google.com | splash
 
-# Monitor Kubernetes pod logs with error highlighting
-kubectl logs pod-name -f | splash -s "ERROR"
+# Generate and colorize JSON logs
+echo '{"timestamp":"2025-01-19T10:30:00Z","level":"ERROR","message":"Connection failed","service":"api"}' | splash
 
-# Colorize web server access logs
-cat /var/log/nginx/access.log | splash
+# View system logs (macOS)
+log stream --predicate 'eventMessage contains "error"' | splash -s "error"
 ```
 
 ## 💡 Usage Examples
@@ -51,46 +51,56 @@ cat /var/log/nginx/access.log | splash
 ### Basic Log Colorization
 
 ```bash
-# JSON logs
-cat app.log | splash
-# {"timestamp":"2025-01-19T10:30:00Z","level":"ERROR","message":"DB failed"}
+# Create and colorize JSON logs
+echo '{"timestamp":"2025-01-19T10:30:00Z","level":"ERROR","message":"Database connection failed","service":"api"}' | splash
 
-# Apache access logs
-tail -f access.log | splash
-# 192.168.1.1 - - [19/Jan/2025:10:30:00 +0000] "GET /api HTTP/1.1" 200 1234
+# Generate structured logs with printf
+printf 'timestamp=2025-01-19T10:30:00Z level=info msg="Server started" port=8080\n' | splash
 
-# Docker logs
-docker logs -f myapp | splash
-# 2025-01-19T10:30:00.123Z INFO Application started on port 8080
+# Simulate Apache access logs
+echo '192.168.1.100 - - [19/Jan/2025:10:30:15 +0000] "GET /api/users HTTP/1.1" 200 1234' | splash
+
+# Create multiple log formats at once
+{ echo '{"level":"INFO","msg":"App started"}'; echo '2025/01/19 10:30:00 ERROR: Connection failed'; } | splash
 ```
 
 ### Search Highlighting
 
 ```bash
-# Highlight all lines containing "ERROR"
-tail -f app.log | splash -s "ERROR"
+# Generate logs and highlight errors
+{ echo '{"level":"INFO","msg":"Starting up"}'; echo '{"level":"ERROR","msg":"Connection failed"}'; echo '{"level":"WARN","msg":"Slow query"}'; } | splash -s "ERROR"
 
-# Highlight lines matching a regex pattern (HTTP 4xx/5xx status codes)
-cat access.log | splash -r "[45]\d\d"
+# Create HTTP logs and highlight error status codes
+{ echo '192.168.1.1 - - [19/Jan/2025:10:30:00 +0000] "GET /api HTTP/1.1" 200 1234'; echo '192.168.1.2 - - [19/Jan/2025:10:30:01 +0000] "POST /api HTTP/1.1" 404 567'; } | splash -r "[45]\d\d"
 
-# Highlight database-related entries
-kubectl logs db-pod | splash -s "database"
+# Monitor real network activity with pattern highlighting
+ping -c 5 google.com | splash -s "time"
+
+# Stream system logs with keyword highlighting (Linux)
+journalctl --lines=10 | splash -s "systemd"
 ```
 
 ### Real-world Examples
 
 ```bash
-# Monitor application logs for errors
-journalctl -f -u myapp | splash -s "ERROR"
+# Monitor system logs with splash (Linux/systemd systems)
+journalctl -f --no-pager | splash
 
-# Analyze web server logs for failed requests
-zcat access.log.gz | splash -r "\" [45]\d\d "
+# Test with sample data from different log formats
+printf '{"ts":"2025-01-19T10:30:00Z","level":"INFO","msg":"User login","user":"alice"}\n{"ts":"2025-01-19T10:30:05Z","level":"ERROR","msg":"Auth failed","user":"bob"}\n' | splash -s "ERROR"
 
-# Debug Kubernetes deployments
-kubectl logs -f deployment/myapp | splash -s "panic"
+# Generate and monitor continuous output
+while true; do echo "$(date -Iseconds) INFO Server is healthy"; sleep 2; done | splash
 
-# Monitor multiple log files
-tail -f /var/log/*.log | splash
+# Create a mix of log formats to test detection
+{ 
+  echo 'Jan 19 10:30:00 localhost myapp[1234]: INFO Application started'
+  echo '{"timestamp":"2025-01-19T10:30:01Z","level":"WARN","message":"High memory usage"}'
+  echo '127.0.0.1 - - [19/Jan/2025:10:30:02 +0000] "GET /health HTTP/1.1" 200 15'
+} | splash
+
+# Use with curl to monitor API responses (requires jq)
+curl -s httpbin.org/json | jq -c . | splash
 ```
 
 ## 🔧 Command Line Options
