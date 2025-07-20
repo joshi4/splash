@@ -48,39 +48,32 @@ func (c *Colorizer) ColorizeLog(line string, format parser.LogFormat) string {
 		return line
 	}
 
-	// Check if this line matches the search pattern
-	if c.matchesSearch(line) {
-		// Apply search highlighting to the entire line
-		return c.applySearchHighlight(line, format)
-	}
+	// Pre-mark search matches in the original line
+	markedLine := c.markSearchMatches(line)
 
 	switch format {
 	case parser.JSONFormat:
-		return c.colorizeJSON(line)
+		return c.colorizeJSON(markedLine)
 	case parser.LogfmtFormat:
-		return c.colorizeLogfmt(line)
+		return c.colorizeLogfmt(markedLine)
 	case parser.ApacheCommonFormat:
-		return c.colorizeApacheCommon(line)
+		return c.colorizeApacheCommon(markedLine)
 	case parser.NginxFormat:
-		return c.colorizeNginx(line)
+		return c.colorizeNginx(markedLine)
 	case parser.SyslogFormat:
-		return c.colorizeSyslog(line)
+		return c.colorizeSyslog(markedLine)
 	case parser.GoStandardFormat:
-		return c.colorizeGoStandard(line)
+		return c.colorizeGoStandard(markedLine)
 	case parser.RailsFormat:
-		return c.colorizeRails(line)
+		return c.colorizeRails(markedLine)
 	case parser.DockerFormat:
-		return c.colorizeDocker(line)
+		return c.colorizeDocker(markedLine)
 	case parser.KubernetesFormat:
-		return c.colorizeKubernetes(line)
+		return c.colorizeKubernetes(markedLine)
 	case parser.HerokuFormat:
-		return c.colorizeHeroku(line)
+		return c.colorizeHeroku(markedLine)
 	default:
-		// For unknown formats, still apply search highlighting if there's a match
-		if c.matchesSearch(line) {
-			return c.simpleSearchHighlight(line, line)
-		}
-		return line // No coloring for unknown formats
+		return c.colorizeGenericLog(markedLine)
 	}
 }
 
@@ -562,11 +555,53 @@ func (c *Colorizer) colorizeGenericLog(line string) string {
 				result.WriteString(styledLevel)
 			}
 		} else {
-			result.WriteString(word)
+			styledWord := c.applyStyleWithMarkers(word, lipgloss.NewStyle())
+			result.WriteString(styledWord)
 		}
 	}
 	
 	return result.String()
+}
+
+// Search highlighting markers
+const (
+	searchStartMarker = "⟦SEARCH_START⟧"
+	searchEndMarker   = "⟦SEARCH_END⟧"
+)
+
+// markSearchMatches marks search matches in the original text with special markers
+func (c *Colorizer) markSearchMatches(line string) string {
+	if !c.matchesSearch(line) {
+		return line
+	}
+	
+	var searchTexts []string
+	if c.searchRegex != nil {
+		// Find all regex matches
+		matches := c.searchRegex.FindAllString(line, -1)
+		searchTexts = matches
+	} else if c.searchString != "" {
+		searchTexts = []string{c.searchString}
+	} else {
+		return line
+	}
+	
+	result := line
+	
+	// Mark each unique search text
+	seen := make(map[string]bool)
+	for _, searchText := range searchTexts {
+		if seen[searchText] || searchText == "" {
+			continue
+		}
+		seen[searchText] = true
+		
+		// Replace all occurrences with marked versions
+		marked := searchStartMarker + searchText + searchEndMarker
+		result = strings.ReplaceAll(result, searchText, marked)
+	}
+	
+	return result
 }
 
 // stripAnsiCodes removes ANSI escape sequences from text
@@ -576,52 +611,18 @@ func (c *Colorizer) stripAnsiCodes(text string) string {
 	return ansiRegex.ReplaceAllString(text, "")
 }
 
-// matchesSearch checks if a line matches the current search pattern (ignoring ANSI codes)
+// matchesSearch checks if a line matches the current search pattern
 func (c *Colorizer) matchesSearch(line string) bool {
-	// Strip ANSI codes before checking for matches
-	cleanLine := c.stripAnsiCodes(line)
-	
 	if c.searchRegex != nil {
-		return c.searchRegex.MatchString(cleanLine)
+		return c.searchRegex.MatchString(line)
 	}
 	if c.searchString != "" {
-		return strings.Contains(cleanLine, c.searchString)
+		return strings.Contains(line, c.searchString)
 	}
 	return false
 }
 
-// applySearchHighlight applies prominent highlighting to matching lines
-func (c *Colorizer) applySearchHighlight(line string, format parser.LogFormat) string {
-	// Apply normal colorization to the original line first
-	var colorizedLine string
-	switch format {
-	case parser.JSONFormat:
-		colorizedLine = c.colorizeJSON(line)
-	case parser.LogfmtFormat:
-		colorizedLine = c.colorizeLogfmt(line)
-	case parser.ApacheCommonFormat:
-		colorizedLine = c.colorizeApacheCommon(line)
-	case parser.NginxFormat:
-		colorizedLine = c.colorizeNginx(line)
-	case parser.SyslogFormat:
-		colorizedLine = c.colorizeSyslog(line)
-	case parser.GoStandardFormat:
-		colorizedLine = c.colorizeGoStandard(line)
-	case parser.RailsFormat:
-		colorizedLine = c.colorizeRails(line)
-	case parser.DockerFormat:
-		colorizedLine = c.colorizeDocker(line)
-	case parser.KubernetesFormat:
-		colorizedLine = c.colorizeKubernetes(line)
-	case parser.HerokuFormat:
-		colorizedLine = c.colorizeHeroku(line)
-	default:
-		colorizedLine = line
-	}
-	
-	// Apply simple search highlighting to the colorized result
-	return c.simpleSearchHighlight(colorizedLine, line)
-}
+
 
 // simpleSearchHighlight applies bold highlighting to search matches in colorized text
 func (c *Colorizer) simpleSearchHighlight(colorizedText, originalText string) string {
@@ -662,22 +663,29 @@ func (c *Colorizer) highlightTextPreservingColors(colorizedText, searchText stri
 		return colorizedText
 	}
 	
+	// Work with clean text to find matches, but apply highlighting to colorized text
+	cleanText := c.stripAnsiCodes(colorizedText)
+	
 	result := ""
-	remaining := colorizedText
+	colorizedRemaining := colorizedText
+	cleanRemaining := cleanText
 	
 	for {
-		// Find the next occurrence of the search text
-		pos := strings.Index(remaining, searchText)
-		if pos == -1 {
-			// No more matches, append remaining text and break
-			result += remaining
+		// Find the next occurrence of the search text in clean text
+		cleanPos := strings.Index(cleanRemaining, searchText)
+		if cleanPos == -1 {
+			// No more matches, append remaining colorized text and break
+			result += colorizedRemaining
 			break
 		}
 		
-		// Extract parts: before match, match, after match
-		before := remaining[:pos]
-		match := remaining[pos:pos+len(searchText)]
-		after := remaining[pos+len(searchText):]
+		// Find the corresponding position in the colorized text
+		colorizedPos := c.findColorizedPosition(colorizedRemaining, cleanRemaining, cleanPos)
+		
+		// Extract parts from colorized text
+		before := colorizedRemaining[:colorizedPos]
+		match := colorizedRemaining[colorizedPos:colorizedPos+len(searchText)]
+		after := colorizedRemaining[colorizedPos+len(searchText):]
 		
 		// Add the text before the match
 		result += before
@@ -704,10 +712,43 @@ func (c *Colorizer) highlightTextPreservingColors(colorizedText, searchText stri
 		}
 		
 		// Continue with the remaining text after this match
-		remaining = after
+		colorizedRemaining = after
+		cleanRemaining = cleanRemaining[cleanPos+len(searchText):]
 	}
 	
 	return result
+}
+
+// findColorizedPosition maps a position in clean text to the corresponding position in colorized text
+func (c *Colorizer) findColorizedPosition(colorizedText, cleanText string, cleanPos int) int {
+	if cleanPos == 0 {
+		return 0
+	}
+	
+	colorizedPos := 0
+	cleanIndex := 0
+	
+	// Iterate through colorized text character by character
+	for colorizedPos < len(colorizedText) && cleanIndex < cleanPos {
+		// Check if we're at the start of an ANSI sequence
+		if colorizedPos < len(colorizedText) && colorizedText[colorizedPos] == '\033' {
+			// Skip the entire ANSI sequence
+			ansiEnd := colorizedPos
+			for ansiEnd < len(colorizedText) && colorizedText[ansiEnd] != 'm' {
+				ansiEnd++
+			}
+			if ansiEnd < len(colorizedText) {
+				ansiEnd++ // Include the 'm'
+			}
+			colorizedPos = ansiEnd
+		} else {
+			// Regular character, advance both positions
+			colorizedPos++
+			cleanIndex++
+		}
+	}
+	
+	return colorizedPos
 }
 
 // extractActiveColorFromBefore extracts the active color from the text before a match
@@ -929,7 +970,7 @@ func (c *Colorizer) convertMarkersToFormatting(colorizedLine string) string {
 // applyStyleWithMarkers applies a style while preserving search markers
 func (c *Colorizer) applyStyleWithMarkers(value string, style lipgloss.Style) string {
 	// Check if the value contains search markers
-	if !strings.Contains(value, "<<<SPLASHBOLD:") {
+	if !strings.Contains(value, searchStartMarker) {
 		// No markers, apply normal styling
 		return style.Render(value)
 	}
@@ -939,7 +980,7 @@ func (c *Colorizer) applyStyleWithMarkers(value string, style lipgloss.Style) st
 	remaining := value
 	
 	for {
-		markerStart := strings.Index(remaining, "<<<SPLASHBOLD:")
+		markerStart := strings.Index(remaining, searchStartMarker)
 		if markerStart == -1 {
 			// No more markers, apply style to remaining text
 			if remaining != "" {
@@ -954,16 +995,16 @@ func (c *Colorizer) applyStyleWithMarkers(value string, style lipgloss.Style) st
 		}
 		
 		// Find the end of the marker
-		markerEnd := strings.Index(remaining[markerStart:], ":SPLASHBOLD>>>")
+		markerEnd := strings.Index(remaining[markerStart:], searchEndMarker)
 		if markerEnd == -1 {
 			// Malformed marker, just style the rest normally
 			result += style.Render(remaining[markerStart:])
 			break
 		}
-		markerEnd += markerStart + len(":SPLASHBOLD>>>")
+		markerEnd += markerStart + len(searchEndMarker)
 		
 		// Extract the matched text from the marker
-		matchText := remaining[markerStart+len("<<<SPLASHBOLD:") : markerEnd-len(":SPLASHBOLD>>>")]
+		matchText := remaining[markerStart+len(searchStartMarker) : markerEnd-len(searchEndMarker)]
 		
 		// Combine original style with bold and computed background
 		highlightStyle := c.createHighlightStyle(style)
