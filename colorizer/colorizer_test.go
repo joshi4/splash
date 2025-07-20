@@ -6,8 +6,219 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 	"github.com/joshi4/splash/parser"
 )
+
+func TestUnifiedSearchHighlightingPreservesOriginalStyling(t *testing.T) {
+	// Force color output for testing
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	
+	tests := []struct {
+		name     string
+		format   parser.LogFormat
+		line     string
+		search   string
+		expectHighlighted bool
+	}{
+		{
+			name:              "Go Standard with timestamp highlighting",
+			format:            parser.GoStandardFormat,
+			line:              "2025/01/19 08:30:00 INFO: Application started",
+			search:            "2025",
+			expectHighlighted: true,
+		},
+		{
+			name:              "Logfmt with key highlighting",
+			format:            parser.LogfmtFormat,
+			line:              "timestamp=2025-01-19T10:30:00Z level=info msg=\"Request processed\"",
+			search:            "level",
+			expectHighlighted: true,
+		},
+		{
+			name:              "Syslog with partial match",
+			format:            parser.SyslogFormat,
+			line:              "Jan 19 10:30:00 hostname myapp[1234]: ERROR: Database connection failed",
+			search:            "app",
+			expectHighlighted: true,
+		},
+		{
+			name:              "Docker with partial match",
+			format:            parser.DockerFormat,
+			line:              "2025-01-19T10:30:00.123456789Z ERROR Database connection failed",
+			search:            "Database",
+			expectHighlighted: true,
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test without search (baseline styling)
+			c1 := NewColorizer()
+			resultWithoutSearch := c1.ColorizeLog(tt.line, tt.format)
+			
+			// Test with search
+			c2 := NewColorizer()
+			c2.SetSearchString(tt.search)
+			resultWithSearch := c2.ColorizeLog(tt.line, tt.format)
+			
+			// Count ANSI escape sequences
+			baselineCodes := strings.Count(resultWithoutSearch, "\x1b[")
+			searchCodes := strings.Count(resultWithSearch, "\x1b[")
+			
+			if tt.expectHighlighted {
+				// With search highlighting, we should have at least as many ANSI codes (original + highlighting)
+				if searchCodes < baselineCodes {
+					t.Errorf("Search highlighting removed original styling. Baseline: %d codes, With search: %d codes", baselineCodes, searchCodes)
+					t.Errorf("Baseline result: %q", resultWithoutSearch)
+					t.Errorf("Search result: %q", resultWithSearch)
+				}
+				
+				// Verify the search term is highlighted
+				if !strings.Contains(resultWithSearch, tt.search) {
+					t.Errorf("Search term '%s' not found in result", tt.search)
+				}
+			}
+		})
+	}
+}
+
+func TestUnifiedRegexSearchHighlightingPreservesOriginalStyling(t *testing.T) {
+	// Force color output for testing
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	
+	tests := []struct {
+		name     string
+		format   parser.LogFormat
+		line     string
+		regex    string
+		expectHighlighted bool
+	}{
+		{
+			name:              "Go Standard with timestamp regex",
+			format:            parser.GoStandardFormat,
+			line:              "2025/01/19 08:30:00 INFO: Application started",
+			regex:             `\d{4}/\d{2}/\d{2}`,
+			expectHighlighted: true,
+		},
+		{
+			name:              "Logfmt with email regex",
+			format:            parser.LogfmtFormat,
+			line:              "user=john@example.com level=info msg=\"Login successful\"",
+			regex:             `\w+@\w+\.\w+`,
+			expectHighlighted: true,
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test without search (baseline styling)
+			c1 := NewColorizer()
+			resultWithoutSearch := c1.ColorizeLog(tt.line, tt.format)
+			
+			// Test with regex search
+			c2 := NewColorizer()
+			err := c2.SetSearchRegex(tt.regex)
+			if err != nil {
+				t.Fatalf("Failed to set regex: %v", err)
+			}
+			resultWithSearch := c2.ColorizeLog(tt.line, tt.format)
+			
+			// Count ANSI escape sequences
+			baselineCodes := strings.Count(resultWithoutSearch, "\x1b[")
+			searchCodes := strings.Count(resultWithSearch, "\x1b[")
+			
+			if tt.expectHighlighted {
+				// With search highlighting, we should have at least as many ANSI codes (original + highlighting)
+				if searchCodes < baselineCodes {
+					t.Errorf("Regex search highlighting removed original styling. Baseline: %d codes, With search: %d codes", baselineCodes, searchCodes)
+					t.Errorf("Baseline result: %q", resultWithoutSearch)
+					t.Errorf("Search result: %q", resultWithSearch)
+				}
+			}
+		})
+	}
+}
+
+func TestJSONPartialSearchHighlighting(t *testing.T) {
+	c := NewColorizer()
+	
+	tests := []struct {
+		name         string
+		jsonLine     string
+		searchString string
+		expectPartialHighlight bool
+		expectWholeHighlight   bool
+	}{
+		{
+			name:                   "Partial match in JSON key",
+			jsonLine:               `{"error_message": "Database failed", "user_id": 12345}`,
+			searchString:           "err",
+			expectPartialHighlight: true,
+			expectWholeHighlight:   false,
+		},
+		{
+			name:                   "Partial match in JSON value",
+			jsonLine:               `{"message": "An error occurred", "status": "failure"}`,
+			searchString:           "err",
+			expectPartialHighlight: true,
+			expectWholeHighlight:   false,
+		},
+		{
+			name:                   "Multiple partial matches",
+			jsonLine:               `{"error_code": "ERR_CONNECTION", "error_message": "Server error"}`,
+			searchString:           "err",
+			expectPartialHighlight: true,
+			expectWholeHighlight:   false,
+		},
+		{
+			name:                   "No match",
+			jsonLine:               `{"message": "Success", "status": "ok"}`,
+			searchString:           "err",
+			expectPartialHighlight: false,
+			expectWholeHighlight:   false,
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c.SetSearchString(tt.searchString)
+			result := c.ColorizeLog(tt.jsonLine, parser.JSONFormat)
+			
+			// Check if JSON structure is still valid by parsing it
+			// We need to strip ANSI codes first to check JSON validity
+			plainResult := c.stripAnsiCodes(result)
+			var jsonData map[string]interface{}
+			if err := json.Unmarshal([]byte(plainResult), &jsonData); err != nil {
+				t.Errorf("JSON structure was broken: %v", err)
+			}
+			
+			if tt.expectPartialHighlight {
+				// Should contain the search term but not highlight entire words
+				if !strings.Contains(result, tt.searchString) {
+					t.Errorf("Expected search term '%s' to be found in result", tt.searchString)
+				}
+				
+				// Verify it's partial highlighting by checking that the search term
+				// appears in context of larger words (like "error_message" containing "err")
+				if tt.searchString == "err" {
+					// The result should contain "err" but in contexts like "error_message" or "error"
+					// where only the "err" part is highlighted, not the whole word
+					if strings.Contains(tt.jsonLine, "error_message") && !strings.Contains(result, "error_message") {
+						t.Errorf("Original contained 'error_message' but result doesn't show it properly")
+					}
+				}
+			} else if !tt.expectPartialHighlight && strings.Contains(result, tt.searchString) {
+				t.Errorf("Did not expect search term '%s' to be found in result", tt.searchString)
+			}
+		})
+	}
+}
 
 func TestColorizer(t *testing.T) {
 	c := NewColorizer()

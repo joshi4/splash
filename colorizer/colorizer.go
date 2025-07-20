@@ -42,6 +42,251 @@ func (c *Colorizer) SetSearchRegex(pattern string) error {
 	return nil
 }
 
+// applyUnifiedSearchHighlighting applies the unified search highlighting to any colorized text
+// DEPRECATED: No longer used since switching to single-pass colorization
+// This preserves original styling for non-matching parts while highlighting matches
+func (c *Colorizer) applyUnifiedSearchHighlighting(colorizedText string) string {
+	if !c.hasSearchPattern() {
+		return colorizedText
+	}
+
+	// Strip ANSI codes to work with plain text positions
+	plainText := c.stripAnsiCodes(colorizedText)
+	
+	// Build result preserving original styling for non-matching parts
+	result := strings.Builder{}
+	lastPlainEnd := 0
+	
+	// Find matches directly in plain text to avoid complex position mapping
+	var plainMatches []struct{ start, end int }
+	
+	if c.searchRegex != nil {
+		regexMatches := c.searchRegex.FindAllStringIndex(plainText, -1)
+		for _, match := range regexMatches {
+			plainMatches = append(plainMatches, struct{ start, end int }{match[0], match[1]})
+		}
+	} else if c.searchString != "" {
+		searchLen := len(c.searchString)
+		startPos := 0
+		for {
+			pos := strings.Index(plainText[startPos:], c.searchString)
+			if pos == -1 {
+				break
+			}
+			actualPos := startPos + pos
+			plainMatches = append(plainMatches, struct{ start, end int }{actualPos, actualPos + searchLen})
+			startPos = actualPos + 1
+		}
+	}
+	
+	if len(plainMatches) == 0 {
+		return colorizedText
+	}
+	
+	for _, match := range plainMatches {
+		plainStart := match.start
+		plainEnd := match.end
+		
+		// Skip if this match is before our current position (overlapping matches)
+		if plainStart < lastPlainEnd {
+			continue
+		}
+		
+		// Add text before match (preserving original styling)
+		if plainStart > lastPlainEnd {
+			styledBefore := c.findStyledTextForPlainRange(colorizedText, plainText, lastPlainEnd, plainStart)
+			result.WriteString(styledBefore)
+		}
+		
+		// Add highlighted match (just the plain text with highlight styling)
+		matchText := plainText[plainStart:plainEnd]
+		result.WriteString(c.theme.UnifiedSearchHighlight.Render(matchText))
+		
+		lastPlainEnd = plainEnd
+	}
+	
+	// Add remaining text after last match (preserving original styling)
+	if lastPlainEnd < len(plainText) {
+		styledRemaining := c.findStyledTextForPlainRange(colorizedText, plainText, lastPlainEnd, len(plainText))
+		result.WriteString(styledRemaining)
+	}
+
+	return result.String()
+}
+
+// findStyledTextForPlainRange extracts the styled text corresponding to a plain text range
+func (c *Colorizer) findStyledTextForPlainRange(colorizedText, plainText string, plainStart, plainEnd int) string {
+	// Handle edge cases
+	if plainStart >= plainEnd || plainStart >= len(plainText) || plainEnd > len(plainText) {
+		return ""
+	}
+	
+	if plainStart == 0 && plainEnd == len(plainText) {
+		return colorizedText
+	}
+	
+	// If there are no ANSI codes, return the plain text range
+	if !strings.Contains(colorizedText, "\x1b[") {
+		return plainText[plainStart:plainEnd]
+	}
+	
+	// Find the corresponding positions in the colorized text
+	colorizedStart := c.findColorizedPosition(colorizedText, plainText, plainStart)
+	colorizedEnd := c.findColorizedPosition(colorizedText, plainText, plainEnd)
+	
+	if colorizedStart >= 0 && colorizedEnd >= 0 && colorizedEnd <= len(colorizedText) {
+		return colorizedText[colorizedStart:colorizedEnd]
+	}
+	
+	// Fallback: return plain text
+	return plainText[plainStart:plainEnd]
+}
+
+// SearchMatch represents a found search match with its position
+type SearchMatch struct {
+	start int
+	end   int
+	text  string
+}
+
+// findAllSearchMatches finds all occurrences of the search pattern in the text
+func (c *Colorizer) findAllSearchMatches(text string) []SearchMatch {
+	// Strip ANSI codes to find matches in the actual text content
+	plainText := c.stripAnsiCodes(text)
+	
+	var matches []SearchMatch
+	
+	if c.searchRegex != nil {
+		// Handle regex search
+		regexMatches := c.searchRegex.FindAllStringIndex(plainText, -1)
+		for _, match := range regexMatches {
+			// Convert positions in plain text to positions in colorized text
+			colorizedStart := c.findColorizedPosition(text, plainText, match[0])
+			colorizedEnd := c.findColorizedPosition(text, plainText, match[1])
+			
+			matches = append(matches, SearchMatch{
+				start: colorizedStart,
+				end:   colorizedEnd,
+				text:  plainText[match[0]:match[1]],
+			})
+		}
+	} else if c.searchString != "" {
+		// Handle string search (case-sensitive)
+		searchLen := len(c.searchString)
+		startPos := 0
+		
+		for {
+			pos := strings.Index(plainText[startPos:], c.searchString)
+			if pos == -1 {
+				break
+			}
+			
+			actualPos := startPos + pos
+			colorizedStart := c.findColorizedPosition(text, plainText, actualPos)
+			colorizedEnd := c.findColorizedPosition(text, plainText, actualPos+searchLen)
+			
+			matches = append(matches, SearchMatch{
+				start: colorizedStart,
+				end:   colorizedEnd,
+				text:  c.searchString,
+			})
+			
+			startPos = actualPos + 1
+		}
+	}
+	
+	return matches
+}
+
+// matchesSearchPattern checks if a string matches the current search pattern
+func (c *Colorizer) matchesSearchPattern(text string) bool {
+	if !c.hasSearchPattern() {
+		return false
+	}
+	
+	if c.searchRegex != nil {
+		return c.searchRegex.MatchString(text)
+	}
+	
+	if c.searchString != "" {
+		return strings.Contains(text, c.searchString)
+	}
+	
+	return false
+}
+
+// applySearchHighlighting applies search highlighting to any text, highlighting only matching parts
+// This is used during single-pass colorization for all formats
+func (c *Colorizer) applySearchHighlighting(text string, normalStyle lipgloss.Style) string {
+	if c.searchString == "" && c.searchRegex == nil {
+		return normalStyle.Render(text)
+	}
+	
+	// Find all search matches in the plain text
+	var matches []SearchMatch
+	
+	if c.searchRegex != nil {
+		// Handle regex search
+		regexMatches := c.searchRegex.FindAllStringIndex(text, -1)
+		for _, match := range regexMatches {
+			matches = append(matches, SearchMatch{
+				start: match[0],
+				end:   match[1],
+				text:  text[match[0]:match[1]],
+			})
+		}
+	} else if c.searchString != "" {
+		// Handle string search (case-sensitive)
+		searchLen := len(c.searchString)
+		startPos := 0
+		
+		for {
+			pos := strings.Index(text[startPos:], c.searchString)
+			if pos == -1 {
+				break
+			}
+			
+			actualPos := startPos + pos
+			matches = append(matches, SearchMatch{
+				start: actualPos,
+				end:   actualPos + searchLen,
+				text:  c.searchString,
+			})
+			startPos = actualPos + searchLen
+		}
+	}
+	
+	if len(matches) == 0 {
+		return normalStyle.Render(text)
+	}
+	
+	// Build result with highlighted matches
+	result := strings.Builder{}
+	lastEnd := 0
+	
+	for _, match := range matches {
+		// Add text before match with normal style
+		if match.start > lastEnd {
+			beforeText := text[lastEnd:match.start]
+			result.WriteString(normalStyle.Render(beforeText))
+		}
+		
+		// Add highlighted match
+		matchText := text[match.start:match.end]
+		result.WriteString(c.theme.UnifiedSearchHighlight.Render(matchText))
+		
+		lastEnd = match.end
+	}
+	
+	// Add remaining text after last match
+	if lastEnd < len(text) {
+		remainingText := text[lastEnd:]
+		result.WriteString(normalStyle.Render(remainingText))
+	}
+	
+	return result.String()
+}
+
 // ColorizeLog applies colors to a log line based on its detected format
 func (c *Colorizer) ColorizeLog(line string, format parser.LogFormat) string {
 	if line == "" {
@@ -50,46 +295,33 @@ func (c *Colorizer) ColorizeLog(line string, format parser.LogFormat) string {
 
 	var result string
 	
+	// Apply colorization with integrated search highlighting (single-pass)
 	switch format {
 	case parser.JSONFormat:
-		// For JSON, apply search highlighting after colorization to avoid breaking JSON parsing
 		result = c.colorizeJSON(line)
-		if c.hasSearchPattern() {
-			result = c.applyPostColorizationSearchHighlight(result, line)
-		}
-		return result
 	case parser.LogfmtFormat:
-		// Pre-mark search matches for other formats
-		markedLine := c.markSearchMatches(line)
-		return c.colorizeLogfmt(markedLine)
+		result = c.colorizeLogfmt(line)
 	case parser.ApacheCommonFormat:
-		markedLine := c.markSearchMatches(line)
-		return c.colorizeApacheCommon(markedLine)
+		result = c.colorizeApacheCommon(line)
 	case parser.NginxFormat:
-		markedLine := c.markSearchMatches(line)
-		return c.colorizeNginx(markedLine)
+		result = c.colorizeNginx(line)
 	case parser.SyslogFormat:
-		markedLine := c.markSearchMatches(line)
-		return c.colorizeSyslog(markedLine)
+		result = c.colorizeSyslog(line)
 	case parser.GoStandardFormat:
-		markedLine := c.markSearchMatches(line)
-		return c.colorizeGoStandard(markedLine)
+		result = c.colorizeGoStandard(line)
 	case parser.RailsFormat:
-		markedLine := c.markSearchMatches(line)
-		return c.colorizeRails(markedLine)
+		result = c.colorizeRails(line)
 	case parser.DockerFormat:
-		markedLine := c.markSearchMatches(line)
-		return c.colorizeDocker(markedLine)
+		result = c.colorizeDocker(line)
 	case parser.KubernetesFormat:
-		markedLine := c.markSearchMatches(line)
-		return c.colorizeKubernetes(markedLine)
+		result = c.colorizeKubernetes(line)
 	case parser.HerokuFormat:
-		markedLine := c.markSearchMatches(line)
-		return c.colorizeHeroku(markedLine)
+		result = c.colorizeHeroku(line)
 	default:
-		markedLine := c.markSearchMatches(line)
-		return c.colorizeGenericLog(markedLine)
+		result = c.colorizeGenericLog(line)
 	}
+	
+	return result
 }
 
 // colorizeJSON adds colors to JSON log lines
@@ -113,12 +345,13 @@ func (c *Colorizer) colorizeJSON(line string) string {
 		// Colorize key
 		result.WriteString(c.theme.Quote.Render(`"`))
 		
-		// Special handling for common log fields
+		// Special handling for common log fields with search highlighting
 		keyStyle := c.theme.JSONKey
 		if c.isLogLevelKey(key) {
 			keyStyle = c.theme.GetLogLevelStyle(key)
 		}
-		result.WriteString(keyStyle.Render(key))
+		styledKey := c.applySearchHighlighting(key, keyStyle)
+		result.WriteString(styledKey)
 		result.WriteString(c.theme.Quote.Render(`"`))
 		result.WriteString(c.theme.Equals.Render(":"))
 		
@@ -130,32 +363,34 @@ func (c *Colorizer) colorizeJSON(line string) string {
 	return result.String()
 }
 
-// colorizeJSONValue colors a JSON value based on context and type
+// colorizeJSONValue colors a JSON value based on context and type with integrated search highlighting
 func (c *Colorizer) colorizeJSONValue(key string, value interface{}) string {
 	switch v := value.(type) {
 	case string:
 		// Special handling for known fields
 		if c.isLogLevelKey(key) {
-			return c.theme.Quote.Render(`"`) + c.applyStyleWithMarkers(v, c.theme.GetLogLevelStyle(v)) + c.theme.Quote.Render(`"`)
+			styledValue := c.applySearchHighlighting(v, c.theme.GetLogLevelStyle(v))
+			return c.theme.Quote.Render(`"`) + styledValue + c.theme.Quote.Render(`"`)
 		}
 		if c.isTimestampKey(key) {
-			return c.theme.Quote.Render(`"`) + c.applyStyleWithMarkers(v, c.theme.Timestamp) + c.theme.Quote.Render(`"`)
+			styledValue := c.applySearchHighlighting(v, c.theme.Timestamp)
+			return c.theme.Quote.Render(`"`) + styledValue + c.theme.Quote.Render(`"`)
 		}
 		if c.isServiceKey(key) {
-			return c.theme.Quote.Render(`"`) + c.applyStyleWithMarkers(v, c.theme.Service) + c.theme.Quote.Render(`"`)
+			styledValue := c.applySearchHighlighting(v, c.theme.Service)
+			return c.theme.Quote.Render(`"`) + styledValue + c.theme.Quote.Render(`"`)
 		}
-		return c.theme.Quote.Render(`"`) + c.applyStyleWithMarkers(v, c.theme.JSONString) + c.theme.Quote.Render(`"`)
+		// Regular string value
+		styledValue := c.applySearchHighlighting(v, c.theme.JSONString)
+		return c.theme.Quote.Render(`"`) + styledValue + c.theme.Quote.Render(`"`)
 	case float64:
 		numberStr := fmt.Sprintf("%g", v)
-		styledNumber := c.applyStyleWithMarkers(numberStr, c.theme.JSONNumber)
-		return styledNumber
+		return c.applySearchHighlighting(numberStr, c.theme.JSONNumber)
 	case bool:
 		if v {
-			styledBool := c.applyStyleWithMarkers("true", c.theme.StatusOK)
-			return styledBool
+			return c.applySearchHighlighting("true", c.theme.StatusOK)
 		}
-		styledBool := c.applyStyleWithMarkers("false", c.theme.StatusWarn)
-		return styledBool
+		return c.applySearchHighlighting("false", c.theme.StatusWarn)
 	case map[string]interface{}:
 		// Recursively colorize nested JSON objects
 		return c.colorizeNestedJSONObject(v)
@@ -165,8 +400,7 @@ func (c *Colorizer) colorizeJSONValue(key string, value interface{}) string {
 	default:
 		// Fallback to JSON marshaling for other types (null, etc.)
 		jsonBytes, _ := json.Marshal(v)
-		styledValue := c.applyStyleWithMarkers(string(jsonBytes), c.theme.JSONValue)
-		return styledValue
+		return c.applySearchHighlighting(string(jsonBytes), c.theme.JSONValue)
 	}
 }
 
@@ -182,9 +416,10 @@ func (c *Colorizer) colorizeNestedJSONObject(obj map[string]interface{}) string 
 		}
 		first = false
 		
-		// Colorize nested key
+		// Colorize nested key with search highlighting
 		result.WriteString(c.theme.Quote.Render(`"`))
-		result.WriteString(c.applyStyleWithMarkers(key, c.theme.JSONKey))
+		styledKey := c.applySearchHighlighting(key, c.theme.JSONKey)
+		result.WriteString(styledKey)
 		result.WriteString(c.theme.Quote.Render(`"`))
 		result.WriteString(c.theme.Equals.Render(":"))
 		
@@ -234,35 +469,29 @@ func (c *Colorizer) colorizeLogfmt(line string) string {
 				// Remove quotes from value if present
 				cleanValue := strings.Trim(value, `"`)
 				
-				// Color the key
+				// Color the key with search highlighting
 				keyStyle := c.theme.LogfmtKey
 				if c.isLogLevelKey(key) {
 					keyStyle = c.theme.GetLogLevelStyle(key)
 				}
-				styledKey := c.applyStyleWithMarkers(key, keyStyle)
-				result.WriteString(styledKey)
+				result.WriteString(c.applySearchHighlighting(key, keyStyle))
 				result.WriteString(c.theme.Equals.Render("="))
 				
-				// Color the value based on key
+				// Color the value based on key with search highlighting
 				if c.isLogLevelKey(key) {
 					if strings.HasPrefix(value, `"`) && strings.HasSuffix(value, `"`) {
 						result.WriteString(c.theme.Quote.Render(`"`))
-						styledValue := c.applyStyleWithMarkers(cleanValue, c.theme.GetLogLevelStyle(cleanValue))
-						result.WriteString(styledValue)
+						result.WriteString(c.applySearchHighlighting(cleanValue, c.theme.GetLogLevelStyle(cleanValue)))
 						result.WriteString(c.theme.Quote.Render(`"`))
 					} else {
-						styledValue := c.applyStyleWithMarkers(value, c.theme.GetLogLevelStyle(cleanValue))
-						result.WriteString(styledValue)
+						result.WriteString(c.applySearchHighlighting(value, c.theme.GetLogLevelStyle(cleanValue)))
 					}
 				} else if c.isTimestampKey(key) {
-					styledValue := c.applyStyleWithMarkers(value, c.theme.Timestamp)
-					result.WriteString(styledValue)
+					result.WriteString(c.applySearchHighlighting(value, c.theme.Timestamp))
 				} else if c.isServiceKey(key) {
-					styledValue := c.applyStyleWithMarkers(value, c.theme.Service)
-					result.WriteString(styledValue)
+					result.WriteString(c.applySearchHighlighting(value, c.theme.Service))
 				} else {
-					styledValue := c.applyStyleWithMarkers(value, c.theme.LogfmtValue)
-					result.WriteString(styledValue)
+					result.WriteString(c.applySearchHighlighting(value, c.theme.LogfmtValue))
 				}
 			} else {
 				result.WriteString(part)
@@ -270,9 +499,9 @@ func (c *Colorizer) colorizeLogfmt(line string) string {
 		} else {
 			// Not a key=value pair, check if it's a log level
 			if c.looksLikeLogLevel(part) {
-				result.WriteString(c.theme.GetLogLevelStyle(part).Render(part))
+				result.WriteString(c.applySearchHighlighting(part, c.theme.GetLogLevelStyle(part)))
 			} else {
-				result.WriteString(part)
+				result.WriteString(c.applySearchHighlighting(part, lipgloss.NewStyle()))
 			}
 		}
 	}
@@ -430,9 +659,10 @@ func (c *Colorizer) colorizeGoStandard(line string) string {
 	message := matches[2]
 	
 	result := strings.Builder{}
-	result.WriteString(c.applyStyleWithMarkers(timestamp, c.theme.Timestamp))
+	// Apply search highlighting during colorization (single-pass)
+	result.WriteString(c.applySearchHighlighting(timestamp, c.theme.Timestamp))
 	result.WriteString(" ")
-	result.WriteString(c.colorizeMessage(message))
+	result.WriteString(c.colorizeMessageWithHighlighting(message))
 	
 	return result.String()
 }
@@ -503,11 +733,12 @@ func (c *Colorizer) colorizeDocker(line string) string {
 	message := matches[3]
 	
 	result := strings.Builder{}
-	result.WriteString(c.applyStyleWithMarkers(timestamp, c.theme.Timestamp))
+	// Apply search highlighting during colorization (single-pass)
+	result.WriteString(c.applySearchHighlighting(timestamp, c.theme.Timestamp))
 	result.WriteString(" ")
-	result.WriteString(c.applyStyleWithMarkers(level, c.theme.GetLogLevelStyle(level)))
+	result.WriteString(c.applySearchHighlighting(level, c.theme.GetLogLevelStyle(level)))
 	result.WriteString(" ")
-	result.WriteString(message)
+	result.WriteString(c.applySearchHighlighting(message, lipgloss.NewStyle()))
 	
 	return result.String()
 }
@@ -555,10 +786,10 @@ func (c *Colorizer) colorizeHeroku(line string) string {
 	message := matches[3]
 	
 	result := strings.Builder{}
-	result.WriteString(c.applyStyleWithMarkers(timestamp, c.theme.Timestamp))
+	result.WriteString(c.theme.Timestamp.Render(timestamp))
 	result.WriteString(" app")
 	result.WriteString(c.theme.Bracket.Render("["))
-	result.WriteString(c.applyStyleWithMarkers(dyno, c.theme.Service))
+	result.WriteString(c.theme.Service.Render(dyno))
 	result.WriteString(c.theme.Bracket.Render("]: "))
 	result.WriteString(c.colorizeMessage(message))
 	
@@ -580,22 +811,56 @@ func (c *Colorizer) colorizeMessage(message string) string {
 	if c.looksLikeLogLevel(cleanWord) {
 		result := strings.Builder{}
 		if strings.HasSuffix(firstWord, ":") {
-			styledLevel := c.applyStyleWithMarkers(cleanWord, c.theme.GetLogLevelStyle(cleanWord))
+			styledLevel := c.theme.GetLogLevelStyle(cleanWord).Render(cleanWord)
 			result.WriteString(styledLevel)
 			result.WriteString(":")
 		} else {
-			styledLevel := c.applyStyleWithMarkers(cleanWord, c.theme.GetLogLevelStyle(cleanWord))
+			styledLevel := c.theme.GetLogLevelStyle(cleanWord).Render(cleanWord)
 			result.WriteString(styledLevel)
 		}
 		
 		if len(parts) > 1 {
 			result.WriteString(" ")
-			result.WriteString(c.applyStyleWithMarkers(strings.Join(parts[1:], " "), lipgloss.NewStyle()))
+			result.WriteString(strings.Join(parts[1:], " "))
 		}
 		return result.String()
 	}
 	
-	return c.applyStyleWithMarkers(message, lipgloss.NewStyle())
+	return message
+}
+
+// colorizeMessageWithHighlighting colors message parts with integrated search highlighting
+func (c *Colorizer) colorizeMessageWithHighlighting(message string) string {
+	// Simple approach: look for log level at the beginning of the message
+	parts := strings.Fields(message)
+	if len(parts) == 0 {
+		return c.applySearchHighlighting(message, lipgloss.NewStyle())
+	}
+	
+	firstWord := parts[0]
+	// Remove trailing colon if present
+	cleanWord := strings.TrimSuffix(firstWord, ":")
+	
+	if c.looksLikeLogLevel(cleanWord) {
+		result := strings.Builder{}
+		if strings.HasSuffix(firstWord, ":") {
+			styledLevel := c.applySearchHighlighting(cleanWord, c.theme.GetLogLevelStyle(cleanWord))
+			result.WriteString(styledLevel)
+			result.WriteString(":")
+		} else {
+			styledLevel := c.applySearchHighlighting(cleanWord, c.theme.GetLogLevelStyle(cleanWord))
+			result.WriteString(styledLevel)
+		}
+		
+		if len(parts) > 1 {
+			result.WriteString(" ")
+			remainingMessage := strings.Join(parts[1:], " ")
+			result.WriteString(c.applySearchHighlighting(remainingMessage, lipgloss.NewStyle()))
+		}
+		return result.String()
+	}
+	
+	return c.applySearchHighlighting(message, lipgloss.NewStyle())
 }
 
 // colorizeGenericLog provides basic colorization for unrecognized formats
@@ -612,15 +877,15 @@ func (c *Colorizer) colorizeGenericLog(line string) string {
 		cleanWord := strings.TrimSuffix(word, ":")
 		if c.looksLikeLogLevel(cleanWord) {
 			if strings.HasSuffix(word, ":") {
-				styledLevel := c.applyStyleWithMarkers(cleanWord, c.theme.GetLogLevelStyle(cleanWord))
+				styledLevel := c.applySearchHighlighting(cleanWord, c.theme.GetLogLevelStyle(cleanWord))
 				result.WriteString(styledLevel)
 				result.WriteString(":")
 			} else {
-				styledLevel := c.applyStyleWithMarkers(cleanWord, c.theme.GetLogLevelStyle(cleanWord))
+				styledLevel := c.applySearchHighlighting(cleanWord, c.theme.GetLogLevelStyle(cleanWord))
 				result.WriteString(styledLevel)
 			}
 		} else {
-			styledWord := c.applyStyleWithMarkers(word, lipgloss.NewStyle())
+			styledWord := c.applySearchHighlighting(word, lipgloss.NewStyle())
 			result.WriteString(styledWord)
 		}
 	}
@@ -1408,52 +1673,8 @@ func (c *Colorizer) convertMarkersToFormatting(colorizedLine string) string {
 
 // applyStyleWithMarkers applies a style while preserving search markers
 func (c *Colorizer) applyStyleWithMarkers(value string, style lipgloss.Style) string {
-	// Check if the value contains search markers
-	if !strings.Contains(value, searchStartMarker) {
-		// No markers, apply normal styling
-		return style.Render(value)
-	}
-	
-	// Split the value at marker boundaries and apply styling appropriately
-	result := ""
-	remaining := value
-	
-	for {
-		markerStart := strings.Index(remaining, searchStartMarker)
-		if markerStart == -1 {
-			// No more markers, apply style to remaining text
-			if remaining != "" {
-				result += style.Render(remaining)
-			}
-			break
-		}
-		
-		// Apply style to text before marker
-		if markerStart > 0 {
-			result += style.Render(remaining[:markerStart])
-		}
-		
-		// Find the end of the marker
-		markerEnd := strings.Index(remaining[markerStart:], searchEndMarker)
-		if markerEnd == -1 {
-			// Malformed marker, just style the rest normally
-			result += style.Render(remaining[markerStart:])
-			break
-		}
-		markerEnd += markerStart + len(searchEndMarker)
-		
-		// Extract the matched text from the marker
-		matchText := remaining[markerStart+len(searchStartMarker) : markerEnd-len(searchEndMarker)]
-		
-		// Combine original style with bold and computed background
-		highlightStyle := c.createHighlightStyle(style)
-		result += highlightStyle.Render(matchText)
-		
-		// Continue with remaining text
-		remaining = remaining[markerEnd:]
-	}
-	
-	return result
+	// Simplified: just apply the style directly since we now use unified highlighting
+	return style.Render(value)
 }
 
 // createHighlightStyle creates a style for search highlighting with computed background
