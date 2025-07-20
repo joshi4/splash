@@ -5,26 +5,25 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"bufio"
+	"context"
+	"fmt"
+	"io"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/spf13/cobra"
 )
 
-
-
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "splash",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	Short: "Add color to your logs",
+	Long:  "Add color to your logs",
+	Run: func(cmd *cobra.Command, args []string) {
+		runSplash()
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -32,6 +31,42 @@ to quickly create a Cobra application.`,
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
+		os.Exit(1)
+	}
+}
+
+// runSplash is the main function that reads from stdin and writes to stdout
+func runSplash() {
+	// Create a context that will be cancelled when we receive a signal
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Set up signal handling
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+
+	// Start a goroutine to handle signals
+	go func() {
+		sig := <-sigChan
+		fmt.Fprintf(os.Stderr, "\nReceived signal: %v, shutting down gracefully...\n", sig)
+		cancel()
+	}()
+
+	// Read from stdin and write to stdout
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			line := scanner.Text()
+			fmt.Println(line)
+		}
+	}
+
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil && err != io.EOF {
+		fmt.Fprintf(os.Stderr, "Error reading from stdin: %v\n", err)
 		os.Exit(1)
 	}
 }
