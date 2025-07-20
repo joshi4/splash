@@ -48,31 +48,46 @@ func (c *Colorizer) ColorizeLog(line string, format parser.LogFormat) string {
 		return line
 	}
 
-	// Pre-mark search matches in the original line
-	markedLine := c.markSearchMatches(line)
-
+	var result string
+	
 	switch format {
 	case parser.JSONFormat:
-		return c.colorizeJSON(markedLine)
+		// For JSON, apply search highlighting after colorization to avoid breaking JSON parsing
+		result = c.colorizeJSON(line)
+		if c.hasSearchPattern() {
+			result = c.applyPostColorizationSearchHighlight(result, line)
+		}
+		return result
 	case parser.LogfmtFormat:
+		// Pre-mark search matches for other formats
+		markedLine := c.markSearchMatches(line)
 		return c.colorizeLogfmt(markedLine)
 	case parser.ApacheCommonFormat:
+		markedLine := c.markSearchMatches(line)
 		return c.colorizeApacheCommon(markedLine)
 	case parser.NginxFormat:
+		markedLine := c.markSearchMatches(line)
 		return c.colorizeNginx(markedLine)
 	case parser.SyslogFormat:
+		markedLine := c.markSearchMatches(line)
 		return c.colorizeSyslog(markedLine)
 	case parser.GoStandardFormat:
+		markedLine := c.markSearchMatches(line)
 		return c.colorizeGoStandard(markedLine)
 	case parser.RailsFormat:
+		markedLine := c.markSearchMatches(line)
 		return c.colorizeRails(markedLine)
 	case parser.DockerFormat:
+		markedLine := c.markSearchMatches(line)
 		return c.colorizeDocker(markedLine)
 	case parser.KubernetesFormat:
+		markedLine := c.markSearchMatches(line)
 		return c.colorizeKubernetes(markedLine)
 	case parser.HerokuFormat:
+		markedLine := c.markSearchMatches(line)
 		return c.colorizeHeroku(markedLine)
 	default:
+		markedLine := c.markSearchMatches(line)
 		return c.colorizeGenericLog(markedLine)
 	}
 }
@@ -670,6 +685,339 @@ func (c *Colorizer) matchesSearch(line string) bool {
 		return strings.Contains(line, c.searchString)
 	}
 	return false
+}
+
+// hasSearchPattern checks if any search pattern is configured
+func (c *Colorizer) hasSearchPattern() bool {
+	return c.searchRegex != nil || c.searchString != ""
+}
+
+// applyPostColorizationSearchHighlight applies search highlighting to already colorized JSON
+func (c *Colorizer) applyPostColorizationSearchHighlight(colorizedText, originalText string) string {
+	if !c.matchesSearch(originalText) {
+		return colorizedText
+	}
+	
+	var searchTexts []string
+	if c.searchRegex != nil {
+		// Find all regex matches in the original text
+		matches := c.searchRegex.FindAllString(originalText, -1)
+		searchTexts = matches
+	} else if c.searchString != "" {
+		searchTexts = []string{c.searchString}
+	}
+	
+	result := colorizedText
+	
+	// Apply highlighting to each unique search text
+	seen := make(map[string]bool)
+	for _, searchText := range searchTexts {
+		if seen[searchText] || searchText == "" {
+			continue
+		}
+		seen[searchText] = true
+		
+		// Use JSON-aware highlighting that preserves structure
+		result = c.highlightInColorizedJSONText(result, searchText, originalText)
+	}
+	
+	return result
+}
+
+// highlightInColorizedJSONText applies JSON-aware search highlighting that preserves structure
+func (c *Colorizer) highlightInColorizedJSONText(colorizedText, searchText, originalText string) string {
+	// Parse the original JSON to understand structure
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(originalText), &data); err != nil {
+		// If JSON parsing fails, fall back to simple highlighting
+		return c.highlightInColorizedText(colorizedText, searchText)
+	}
+	
+	// Instead of trying to map positions (unreliable due to JSON reordering),
+	// apply highlighting by finding and replacing all occurrences in the colorized text
+	return c.highlightJSONTextSimple(colorizedText, searchText)
+}
+
+// highlightJSONTextSimple applies search highlighting to JSON text while preserving structure
+func (c *Colorizer) highlightJSONTextSimple(colorizedText, searchText string) string {
+	// Simple but effective approach: find all occurrences of the search text
+	// and highlight them, but be careful about JSON structure
+	plainText := c.stripAnsiCodes(colorizedText)
+	
+	// Find all positions where the search text appears
+	var positions []int
+	startPos := 0
+	for {
+		pos := strings.Index(plainText[startPos:], searchText)
+		if pos == -1 {
+			break
+		}
+		positions = append(positions, startPos+pos)
+		startPos = startPos + pos + 1
+	}
+	
+	if len(positions) == 0 {
+		return colorizedText
+	}
+	
+	// Apply highlighting from right to left to preserve positions
+	result := colorizedText
+	for i := len(positions) - 1; i >= 0; i-- {
+		plainPos := positions[i]
+		
+		// Check if this match is inside a JSON key (between quotes followed by colon)
+		if c.isPositionInJSONKey(plainText, plainPos, len(searchText)) {
+			// Highlight the entire key
+			result = c.highlightJSONKeyAtPosition(result, plainPos, searchText, plainText)
+		} else {
+			// Highlight just the match (it's in a value)
+			colorizedPos := c.findColorizedPosition(result, c.stripAnsiCodes(result), plainPos)
+			before := result[:colorizedPos]
+			match := result[colorizedPos:colorizedPos+len(searchText)]
+			after := result[colorizedPos+len(searchText):]
+			
+			highlightedMatch := c.theme.SearchHighlight.Render(match)
+			result = before + highlightedMatch + after
+		}
+	}
+	
+	return result
+}
+
+// isPositionInJSONKey checks if a position is inside a JSON key
+func (c *Colorizer) isPositionInJSONKey(plainText string, pos, length int) bool {
+	// Find the enclosing quotes
+	beforePos := plainText[:pos]
+	afterPos := plainText[pos+length:]
+	
+	// Find the last quote before the position
+	lastQuote := strings.LastIndex(beforePos, `"`)
+	if lastQuote == -1 {
+		return false
+	}
+	
+	// Find the next quote after the position
+	nextQuote := strings.Index(afterPos, `"`)
+	if nextQuote == -1 {
+		return false
+	}
+	
+	// Check what comes after the closing quote
+	afterQuotePos := pos + length + nextQuote + 1
+	if afterQuotePos >= len(plainText) {
+		return false
+	}
+	
+	remaining := strings.TrimSpace(plainText[afterQuotePos:])
+	return strings.HasPrefix(remaining, ":")
+}
+
+// highlightJSONKeyAtPosition highlights a JSON key at a specific position
+func (c *Colorizer) highlightJSONKeyAtPosition(colorizedText string, pos int, searchText, plainText string) string {
+	// Find the bounds of the key in plain text
+	keyStart, keyEnd := c.findKeyBoundsAtPosition(plainText, pos)
+	if keyStart == -1 || keyEnd == -1 {
+		// Fallback to simple highlighting
+		colorizedPos := c.findColorizedPosition(colorizedText, c.stripAnsiCodes(colorizedText), pos)
+		before := colorizedText[:colorizedPos]
+		match := colorizedText[colorizedPos:colorizedPos+len(searchText)]
+		after := colorizedText[colorizedPos+len(searchText):]
+		return before + c.theme.SearchHighlight.Render(match) + after
+	}
+	
+	// Map to colorized text positions
+	colorizedKeyStart := c.findColorizedPosition(colorizedText, c.stripAnsiCodes(colorizedText), keyStart)
+	colorizedKeyEnd := c.findColorizedPosition(colorizedText, c.stripAnsiCodes(colorizedText), keyEnd)
+	
+	before := colorizedText[:colorizedKeyStart]
+	keyText := colorizedText[colorizedKeyStart:colorizedKeyEnd]
+	after := colorizedText[colorizedKeyEnd:]
+	
+	highlightedKey := c.theme.SearchHighlight.Render(keyText)
+	return before + highlightedKey + after
+}
+
+// findKeyBoundsAtPosition finds the start and end of a JSON key containing the given position
+func (c *Colorizer) findKeyBoundsAtPosition(plainText string, pos int) (int, int) {
+	// Find the opening quote
+	keyStart := strings.LastIndex(plainText[:pos], `"`)
+	if keyStart == -1 {
+		return -1, -1
+	}
+	
+	// Find the closing quote
+	keyEnd := strings.Index(plainText[pos:], `"`)
+	if keyEnd == -1 {
+		return -1, -1
+	}
+	keyEnd = pos + keyEnd + 1 // Include the closing quote
+	
+	// Verify this is actually a key
+	afterKey := strings.TrimSpace(plainText[keyEnd:])
+	if !strings.HasPrefix(afterKey, ":") {
+		return -1, -1
+	}
+	
+	return keyStart, keyEnd
+}
+
+// JSONSearchMatch represents a search match with context information
+type JSONSearchMatch struct {
+	Position int  // Position in the original text
+	InValue  bool // True if match is in a JSON value, false if in a key
+}
+
+// findJSONSearchMatches finds search matches and determines if they're in keys or values
+func (c *Colorizer) findJSONSearchMatches(jsonText, searchText string) []JSONSearchMatch {
+	var matches []JSONSearchMatch
+	
+	// Simple approach: find all occurrences and analyze context
+	startPos := 0
+	for {
+		pos := strings.Index(jsonText[startPos:], searchText)
+		if pos == -1 {
+			break
+		}
+		absolutePos := startPos + pos
+		
+		// Determine if this match is in a key or value by analyzing surrounding context
+		inValue := c.isSearchMatchInJSONValue(jsonText, absolutePos, len(searchText))
+		
+		matches = append(matches, JSONSearchMatch{
+			Position: absolutePos,
+			InValue:  inValue,
+		})
+		
+		startPos = absolutePos + 1
+	}
+	
+	return matches
+}
+
+// highlightJSONKey highlights a JSON key by wrapping the entire quoted key with ANSI codes
+func (c *Colorizer) highlightJSONKey(colorizedText string, matchPos int, searchText, plainText string) string {
+	// Find the start and end of the quoted key that contains our match
+	keyStart, keyEnd := c.findJSONKeyBounds(plainText, matchPos)
+	if keyStart == -1 || keyEnd == -1 {
+		// Fallback: highlight just the match if we can't find key bounds
+		colorizedPos := c.findColorizedPosition(colorizedText, plainText, matchPos)
+		before := colorizedText[:colorizedPos]
+		match := colorizedText[colorizedPos:colorizedPos+len(searchText)]
+		after := colorizedText[colorizedPos+len(searchText):]
+		return before + c.theme.SearchHighlight.Render(match) + after
+	}
+	
+	// Map the key bounds from plain text to colorized text
+	colorizedKeyStart := c.findColorizedPosition(colorizedText, plainText, keyStart)
+	colorizedKeyEnd := c.findColorizedPosition(colorizedText, plainText, keyEnd)
+	
+	// Extract the entire quoted key from colorized text
+	before := colorizedText[:colorizedKeyStart]
+	keyWithQuotes := colorizedText[colorizedKeyStart:colorizedKeyEnd]
+	after := colorizedText[colorizedKeyEnd:]
+	
+	// Apply highlighting to the entire quoted key
+	highlightedKey := c.theme.SearchHighlight.Render(keyWithQuotes)
+	
+	return before + highlightedKey + after
+}
+
+// findJSONKeyBounds finds the start and end positions of a quoted JSON key containing the match
+func (c *Colorizer) findJSONKeyBounds(plainText string, matchPos int) (int, int) {
+	// Find the opening quote of the key that contains our match
+	keyStart := strings.LastIndex(plainText[:matchPos], `"`)
+	if keyStart == -1 {
+		return -1, -1
+	}
+	
+	// Find the closing quote of the key
+	keyEnd := strings.Index(plainText[matchPos:], `"`)
+	if keyEnd == -1 {
+		return -1, -1
+	}
+	keyEnd = matchPos + keyEnd + 1 // Include the closing quote
+	
+	// Verify this is actually a key by checking what follows the closing quote
+	afterKey := strings.TrimSpace(plainText[keyEnd:])
+	if !strings.HasPrefix(afterKey, ":") {
+		return -1, -1 // Not a key
+	}
+	
+	return keyStart, keyEnd
+}
+
+// isSearchMatchInJSONValue determines if a search match is within a JSON value (not a key)
+func (c *Colorizer) isSearchMatchInJSONValue(jsonText string, matchPos, matchLen int) bool {
+	// Look backwards from match position to find the nearest quote and colon
+	// If we find a colon before a quote, we're likely in a value
+	// If we find a quote before a colon, we might be in a key
+	
+	beforeMatch := jsonText[:matchPos]
+	afterMatch := jsonText[matchPos+matchLen:]
+	
+	// Find the last quote before our match
+	lastQuotePos := strings.LastIndex(beforeMatch, `"`)
+	if lastQuotePos == -1 {
+		return false // Not in quotes at all
+	}
+	
+	// Find the next quote after our match
+	nextQuotePos := strings.Index(afterMatch, `"`)
+	if nextQuotePos == -1 {
+		return false // Not properly quoted
+	}
+	
+	// Check what comes after the closing quote
+	afterQuoteText := jsonText[matchPos+matchLen+nextQuotePos+1:]
+	afterQuoteText = strings.TrimSpace(afterQuoteText)
+	
+	// If the character after the closing quote is ':', we're in a key
+	// If it's ',' or '}' or ']', we're in a value
+	if strings.HasPrefix(afterQuoteText, ":") {
+		return false // This is a key
+	}
+	
+	return true // This is likely a value
+}
+
+// highlightInColorizedText highlights search text in colorized output while preserving colors
+func (c *Colorizer) highlightInColorizedText(colorizedText, searchText string) string {
+	// Strip ANSI codes to find plain text positions
+	plainText := c.stripAnsiCodes(colorizedText)
+	
+	// Find all occurrences of the search text in plain text
+	var positions []int
+	startPos := 0
+	for {
+		pos := strings.Index(plainText[startPos:], searchText)
+		if pos == -1 {
+			break
+		}
+		positions = append(positions, startPos+pos)
+		startPos = startPos + pos + 1 // Move past this match for next search
+	}
+	
+	if len(positions) == 0 {
+		return colorizedText
+	}
+	
+	// Apply highlighting from right to left to preserve positions
+	result := colorizedText
+	for i := len(positions) - 1; i >= 0; i-- {
+		plainPos := positions[i]
+		colorizedPos := c.findColorizedPosition(result, c.stripAnsiCodes(result), plainPos)
+		
+		// Extract the search text at this position in the colorized string
+		before := result[:colorizedPos]
+		matchedText := result[colorizedPos:colorizedPos+len(searchText)]
+		after := result[colorizedPos+len(searchText):]
+		
+		// Apply search highlighting
+		highlightedText := c.theme.SearchHighlight.Render(matchedText)
+		result = before + highlightedText + after
+	}
+	
+	return result
 }
 
 

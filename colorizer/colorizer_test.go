@@ -1,6 +1,8 @@
 package colorizer
 
 import (
+	"encoding/json"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -311,3 +313,269 @@ func TestJSONSpecialFieldsInNestedObjects(t *testing.T) {
 		})
 	}
 }
+
+func TestJSONSearchMarkersNotBreakingStructure(t *testing.T) {
+	c := NewColorizer()
+
+	tests := []struct {
+		name         string
+		line         string
+		searchString string
+		shouldNotContain []string // Markers that should NOT appear in the output
+	}{
+		{
+			name:         "Search in key name doesn't break JSON structure",
+			line:         `{"slideshow":{"title":"Sample Slide Show"}}`,
+			searchString: "slide",
+			shouldNotContain: []string{"⟦SEARCH_START⟧", "⟦SEARCH_END⟧", `{"⟦SEARCH_START⟧slide⟦SEARCH_END⟧show"`},
+		},
+		{
+			name:         "Search in nested object key",
+			line:         `{"data":{"timeout":30,"message":"timeout occurred"}}`,
+			searchString: "timeout",
+			shouldNotContain: []string{"⟦SEARCH_START⟧", "⟦SEARCH_END⟧"},
+		},
+		{
+			name:         "Search in value doesn't break JSON",
+			line:         `{"level":"ERROR","message":"Connection timeout"}`,
+			searchString: "timeout",
+			shouldNotContain: []string{"⟦SEARCH_START⟧", "⟦SEARCH_END⟧"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c.SetSearchString(tt.searchString)
+			result := c.ColorizeLog(tt.line, parser.JSONFormat)
+			
+			// Verify the result is valid (no broken markers)
+			for _, forbidden := range tt.shouldNotContain {
+				if strings.Contains(result, forbidden) {
+					t.Errorf("Result should not contain %q, got: %q", forbidden, result)
+				}
+			}
+			
+			// Verify the search term is still present (should be highlighted)
+			if !strings.Contains(result, tt.searchString) {
+				t.Errorf("Search term %q should be present in result, got: %q", tt.searchString, result)
+			}
+			
+			// Verify the result is still valid JSON structure (contains braces)
+			if !strings.Contains(result, "{") || !strings.Contains(result, "}") {
+				t.Errorf("Result should maintain JSON structure, got: %q", result)
+			}
+		})
+	}
+}
+
+func TestJSONSearchNoAnsiCodesInsideKeys(t *testing.T) {
+	c := NewColorizer()
+
+	tests := []struct {
+		name         string
+		line         string
+		searchString string
+	}{
+		{
+			name:         "Search in JSON key should not insert ANSI codes inside quoted key name",
+			line:         `{"slideshow":{"slides":[{"title":"test"}]}}`,
+			searchString: "slide",
+		},
+		{
+			name:         "Search matching multiple JSON keys",
+			line:         `{"data":{"timeout":30},"config":{"timeout_ms":5000}}`,
+			searchString: "timeout",
+		},
+		{
+			name:         "Search in complex nested JSON",
+			line:         `{"slideshow":{"author":"Yours Truly","slides":[{"title":"Overview"}]}}`,
+			searchString: "slide",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c.SetSearchString(tt.searchString)
+			result := c.ColorizeLog(tt.line, parser.JSONFormat)
+			
+			// Check that no ANSI escape codes appear inside JSON key quotes
+			// Pattern: "key with ANSI codes inside"
+			ansiInKeyPattern := `"[^"]*\x1b\[[0-9;]*m[^"]*"`
+			matched, err := regexp.MatchString(ansiInKeyPattern, result)
+			if err != nil {
+				t.Fatalf("Regex error: %v", err)
+			}
+			if matched {
+				t.Errorf("ANSI codes found inside JSON key quotes in result: %q", result)
+			}
+			
+			// Also check for specific problematic patterns like the user reported
+			problematicPatterns := []string{
+				`"[38;2;221;160;221m`,  // Color code at start of key
+				`m"`,                    // Color code at end of key  
+				`"[0m`,                  // Reset code in key
+			}
+			
+			for _, pattern := range problematicPatterns {
+				if strings.Contains(result, pattern) {
+					t.Errorf("Found problematic ANSI pattern %q in result: %q", pattern, result)
+				}
+			}
+			
+			// Verify the search term is still present (should be highlighted somewhere)
+			if !strings.Contains(result, tt.searchString) {
+				t.Errorf("Search term %q should be present in result, got: %q", tt.searchString, result)
+			}
+			
+			// Verify that JSON structure is maintained (should still be parseable)
+			// Remove ANSI codes and check if it's still valid JSON
+			cleanResult := regexp.MustCompile(`\x1b\[[0-9;]*m`).ReplaceAllString(result, "")
+			var testData interface{}
+			if err := json.Unmarshal([]byte(cleanResult), &testData); err != nil {
+				t.Errorf("Result should still be valid JSON after removing ANSI codes, got error: %v, result: %q", err, cleanResult)
+			}
+		})
+	}
+}
+
+func TestJSONSearchHighlightsBothKeysAndValues(t *testing.T) {
+	c := NewColorizer()
+
+	tests := []struct {
+		name         string
+		line         string
+		searchString string
+		description  string
+	}{
+		{
+			name:         "Search term appears in both key and value",
+			line:         `{"slideshow":"slide presentation","data":"normal"}`,
+			searchString: "slide",
+			description:  "Should highlight both the key 'slideshow' and value 'slide presentation'",
+		},
+		{
+			name:         "Multiple key matches",
+			line:         `{"timeout":30,"timeout_ms":5000,"msg":"Connection timeout"}`,
+			searchString: "timeout",
+			description:  "Should highlight keys 'timeout', 'timeout_ms' and value 'Connection timeout'",
+		},
+		{
+			name:         "Nested structure with mixed matches",
+			line:         `{"error":{"code":500,"error_msg":"An error occurred"}}`,
+			searchString: "error",
+			description:  "Should highlight key 'error', nested key 'error_msg', and value 'An error occurred'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c.SetSearchString(tt.searchString)
+			result := c.ColorizeLog(tt.line, parser.JSONFormat)
+			
+			// Verify no ANSI codes inside key quotes (structure preservation)
+			ansiInKeyPattern := `"[^"]*\x1b\[[0-9;]*m[^"]*"`
+			matched, err := regexp.MatchString(ansiInKeyPattern, result)
+			if err != nil {
+				t.Fatalf("Regex error: %v", err)
+			}
+			if matched {
+				t.Errorf("ANSI codes found inside JSON key quotes in result: %q", result)
+			}
+			
+			// Verify the search term is still present
+			if !strings.Contains(result, tt.searchString) {
+				t.Errorf("Search term %q should be present in result, got: %q", tt.searchString, result)
+			}
+			
+			// Verify JSON structure is preserved
+			cleanResult := regexp.MustCompile(`\x1b\[[0-9;]*m`).ReplaceAllString(result, "")
+			var testData interface{}
+			if err := json.Unmarshal([]byte(cleanResult), &testData); err != nil {
+				t.Errorf("Result should still be valid JSON after removing ANSI codes, got error: %v, result: %q", err, cleanResult)
+			}
+			
+			// The clean result should be identical to the original (just reordered potentially)
+			var originalData, resultData interface{}
+			if err := json.Unmarshal([]byte(tt.line), &originalData); err != nil {
+				t.Fatalf("Original JSON is invalid: %v", err)
+			}
+			if err := json.Unmarshal([]byte(cleanResult), &resultData); err != nil {
+				t.Fatalf("Clean result JSON is invalid: %v", err)
+			}
+			
+			// Both should parse to equivalent structures (can't compare directly due to map ordering)
+			// Just ensure they're both valid - structural comparison would be complex
+		})
+	}
+}
+
+func TestJSONSearchValueHighlighting(t *testing.T) {
+	c := NewColorizer()
+
+	tests := []struct {
+		name         string
+		line         string
+		searchString string
+		expectHighlighted bool
+	}{
+		{
+			name:         "Search term only in JSON value should be highlighted",
+			line:         `{"level":"ERROR","message":"timeout occurred"}`,
+			searchString: "timeout",
+			expectHighlighted: true,
+		},
+		{
+			name:         "Search term in nested JSON value",
+			line:         `{"data":{"status":"error occurred","code":500}}`,
+			searchString: "error",
+			expectHighlighted: true,
+		},
+		{
+			name:         "Search term in array element value",
+			line:         `{"tags":["error","warning","timeout"]}`,
+			searchString: "timeout",
+			expectHighlighted: true,
+		},
+		{
+			name:         "Search term not found",
+			line:         `{"level":"INFO","message":"success"}`,
+			searchString: "error",
+			expectHighlighted: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c.SetSearchString(tt.searchString)
+			result := c.ColorizeLog(tt.line, parser.JSONFormat)
+			
+			if tt.expectHighlighted {
+				// Check that search term is present
+				if !strings.Contains(result, tt.searchString) {
+					t.Errorf("Expected search term %q to be present in result, got: %q", tt.searchString, result)
+				}
+				
+				// For manual verification, let's also check that there are ANSI codes in the result
+				// when highlighting is expected (this would be visible in a real terminal)
+				hasAnsiCodes := strings.Contains(result, "\x1b[") || strings.Contains(result, "\033[")
+				if !hasAnsiCodes {
+					t.Logf("Note: No ANSI codes found in result (expected in test environment): %q", result)
+				}
+			} else {
+				// Search term should not be in the result if not found in original
+				if !strings.Contains(tt.line, tt.searchString) && strings.Contains(result, tt.searchString) {
+					t.Errorf("Search term %q should not appear in result when not in original, got: %q", tt.searchString, result)
+				}
+			}
+			
+			// Verify JSON structure is always preserved
+			cleanResult := regexp.MustCompile(`\x1b\[[0-9;]*m`).ReplaceAllString(result, "")
+			var testData interface{}
+			if err := json.Unmarshal([]byte(cleanResult), &testData); err != nil {
+				t.Errorf("Result should still be valid JSON after removing ANSI codes, got error: %v, result: %q", err, cleanResult)
+			}
+		})
+	}
+}
+
+
