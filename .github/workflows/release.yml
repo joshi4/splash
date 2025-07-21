@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+  # Needed for Homebrew tap repository access
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Run tests
+        run: |
+          go test ./...
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # For Homebrew tap - you'll need to create this secret
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+
+  # Notify about successful release
+  notify:
+    needs: release
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Get release info
+        id: release_info
+        run: |
+          echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          
+      - name: Comment on related issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = '${{ steps.release_info.outputs.tag_name }}';
+            console.log(`New release ${tag} has been published!`);

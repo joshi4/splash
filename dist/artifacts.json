@@ -1,0 +1,1 @@
+[{"name":"metadata.json","path":"dist/metadata.json","internal_type":30,"type":"Metadata"},{"name":"splash","path":"dist/splash_darwin_all/splash","goos":"darwin","goarch":"all","internal_type":5,"type":"Binary","extra":{"Binary":"splash","Ext":"","ID":"splash","Replaces":true}}]

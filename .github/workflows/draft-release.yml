@@ -1,0 +1,113 @@
+name: Draft Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  draft-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Get next version
+        id: version
+        run: |
+          # Get the latest tag, or default to v0.0.0 if no tags exist
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          
+          # Increment patch version for draft
+          VERSION=$(echo $LATEST_TAG | sed -E 's/v([0-9]+)\.([0-9]+)\.([0-9]+)/v\1.\2./')
+          PATCH=$(echo $LATEST_TAG | sed -E 's/v([0-9]+)\.([0-9]+)\.([0-9]+)/\3/')
+          NEXT_PATCH=$((PATCH + 1))
+          NEXT_VERSION="${VERSION}${NEXT_PATCH}"
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Run GoReleaser (snapshot)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --snapshot --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create draft release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const nextVersion = '${{ steps.version.outputs.next_version }}';
+            
+            // Read changelog if it exists
+            let body = `Draft release for ${nextVersion}\n\n`;
+            body += `This is an automated draft release created from the latest main branch.\n`;
+            body += `Review the changes and publish when ready.\n\n`;
+            body += `## Changes since last release\n`;
+            
+            try {
+              const { data: commits } = await github.rest.repos.listCommits({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                per_page: 20
+              });
+              
+              body += commits.map(commit => 
+                `- ${commit.commit.message.split('\n')[0]} (${commit.sha.slice(0, 7)})`
+              ).join('\n');
+            } catch (error) {
+              body += "Unable to fetch recent commits.";
+            }
+            
+            // Create or update draft release
+            try {
+              const { data: releases } = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+              
+              const draftRelease = releases.find(release => release.draft);
+              
+              if (draftRelease) {
+                await github.rest.repos.updateRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: draftRelease.id,
+                  tag_name: nextVersion,
+                  name: `Release ${nextVersion}`,
+                  body: body,
+                  draft: true
+                });
+                console.log(`Updated draft release ${nextVersion}`);
+              } else {
+                await github.rest.repos.createRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag_name: nextVersion,
+                  name: `Release ${nextVersion}`,
+                  body: body,
+                  draft: true
+                });
+                console.log(`Created draft release ${nextVersion}`);
+              }
+            } catch (error) {
+              console.error('Error managing draft release:', error);
+            }

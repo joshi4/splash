@@ -1,0 +1,127 @@
+version: 1
+
+# Build configuration
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - "386"
+      - amd64
+      - arm64
+    goarm:
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm64
+      - goos: windows
+        goarch: "386"
+    main: ./main.go
+    binary: splash
+    ldflags:
+      - -s -w -X github.com/joshi4/splash/cmd.version={{.Version}}
+
+# Archive configuration  
+archives:
+  - format: tar.gz
+    # Use zip for Windows archives
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+
+# Checksum configuration
+checksum:
+  name_template: 'checksums.txt'
+
+# Snapshot configuration for development builds
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+# Changelog configuration
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "merge conflict"
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+  groups:
+    - title: "New Features"
+      regexp: "^.*feat[(\\w)]*:+.*$"
+      order: 0
+    - title: "Bug Fixes"
+      regexp: "^.*fix[(\\w)]*:+.*$"
+      order: 1
+    - title: "Improvements"
+      regexp: "^.*(refactor|perf)[(\\w)]*:+.*$"
+      order: 2
+    - title: "Documentation"
+      regexp: "^.*docs[(\\w)]*:+.*$"
+      order: 3
+    - title: "Other Changes"
+      order: 999
+
+# Homebrew configuration
+brews:
+  - repository:
+      owner: joshi4
+      name: homebrew-tap
+    homepage: "https://github.com/joshi4/splash"
+    description: "Add color to your logs"
+    license: "MIT"
+    test: |
+      system "#{bin}/splash", "version"
+    install: |
+      bin.install "splash"
+
+# Release configuration
+release:
+  # Repo where the release will be created
+  github:
+    owner: joshi4
+    name: splash
+  
+  # Pre-release configuration
+  prerelease: auto
+  
+  # Release name template
+  name_template: "Release {{.Tag}}"
+  
+  # Footer template for release notes
+  footer: |
+    **Full Changelog**: https://github.com/joshi4/splash/compare/{{ .PreviousTag }}...{{ .Tag }}
+    
+    ## Installation
+    
+    ### Homebrew
+    ```bash
+    brew install joshi4/tap/splash
+    ```
+    
+    ### Download Binary
+    Download the appropriate binary for your platform from the assets below.
+    
+    ### Upgrade
+    If you already have splash installed, run:
+    ```bash
+    splash upgrade
+    ```
+
+# Universal binaries for macOS
+universal_binaries:
+  - replace: true
