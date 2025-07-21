@@ -66,7 +66,7 @@ var (
 // DetectFormat analyzes a log line and returns the detected format
 func DetectFormat(line string) LogFormat {
 	line = strings.TrimSpace(line)
-	
+
 	if line == "" {
 		return UnknownFormat
 	}
@@ -85,31 +85,31 @@ func DetectFormat(line string) LogFormat {
 	if legacyKubernetesRegex.MatchString(line) {
 		return KubernetesFormat
 	}
-	
+
 	if legacyHerokuRegex.MatchString(line) {
 		return HerokuFormat
 	}
-	
+
 	if legacyDockerRegex.MatchString(line) {
 		return DockerFormat
 	}
-	
+
 	if legacyNginxRegex.MatchString(line) {
 		return NginxFormat
 	}
-	
+
 	if legacyApacheCommonRegex.MatchString(line) {
 		return ApacheCommonFormat
 	}
-	
+
 	if legacyRailsRegex.MatchString(line) {
 		return RailsFormat
 	}
-	
+
 	if legacySyslogRegex.MatchString(line) {
 		return SyslogFormat
 	}
-	
+
 	if legacyGoStandardRegex.MatchString(line) {
 		return GoStandardFormat
 	}
@@ -131,14 +131,14 @@ func isLogfmtFormat(line string) bool {
 	if len(parts) == 0 {
 		return false
 	}
-	
+
 	kvPairs := 0
 	for _, part := range parts {
 		if strings.Contains(part, "=") && !strings.HasPrefix(part, "=") && !strings.HasSuffix(part, "=") {
 			kvPairs++
 		}
 	}
-	
+
 	// Consider it logfmt if more than half the parts are key=value pairs
 	return kvPairs > 0 && float64(kvPairs)/float64(len(parts)) > 0.5
 }

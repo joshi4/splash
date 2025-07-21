@@ -1,0 +1,107 @@
+run:
+  timeout: 5m
+  go: "1.21"
+
+linters:
+  enable:
+    # Default linters
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    
+    # Additional useful linters
+    - gofmt
+    - goimports
+    - misspell
+    - revive
+    - unconvert
+    - unparam
+    - gocyclo
+    - goconst
+    - gocritic
+    - gosec
+    - dupl
+    - exportloopref
+    - forcetypeassert
+    - nilerr
+    - nilnil
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - wastedassign
+    - whitespace
+
+  disable:
+    - deadcode  # deprecated
+    - varcheck  # deprecated
+    - structcheck  # deprecated
+    - ifshort   # deprecated
+
+linters-settings:
+  gofmt:
+    simplify: true
+    
+  goimports:
+    local-prefixes: github.com/joshi4/splash
+    
+  gocyclo:
+    min-complexity: 15
+    
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+    
+  misspell:
+    locale: US
+    
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+      - name: unused-parameter
+        severity: warning
+      - name: unreachable-code
+        severity: warning
+        
+  gosec:
+    excludes:
+      - G204  # Allow subprocess with variable command
+      
+  dupl:
+    threshold: 100
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - goconst
+        
+    # Exclude some staticcheck messages
+    - linters:
+        - staticcheck
+      text: "SA9003:"
+      
+    # Exclude lll issues for long lines with go:generate
+    - linters:
+        - lll
+      source: "^//go:generate "
+
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new: false
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+  uniq-by-line: true
