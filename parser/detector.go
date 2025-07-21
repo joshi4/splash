@@ -13,7 +13,7 @@ import (
 type FormatDetector interface {
 	Detect(ctx context.Context, line string) bool
 	Format() LogFormat
-	Specificity() int // Basic tier (non-regex formats get manual scoring)
+	Specificity() int   // Basic tier (non-regex formats get manual scoring)
 	PatternLength() int // Length of regex pattern for tie-breaking
 }
 
@@ -37,16 +37,16 @@ type Parser struct {
 func NewParser() *Parser {
 	return &Parser{
 		detectors: []FormatDetector{
-		&JSONDetector{},
-		&LogfmtDetector{},
-		&KubernetesDetector{}, // Must be before DockerDetector
-		&HerokuDetector{},
-		&NginxDetector{}, // Must be before ApacheCommonDetector
-		&ApacheCommonDetector{},
-		&DockerDetector{},
-		&RailsDetector{},
-		&SyslogDetector{},
-		&GoStandardDetector{},
+			&JSONDetector{},
+			&LogfmtDetector{},
+			&KubernetesDetector{}, // Must be before DockerDetector
+			&HerokuDetector{},
+			&NginxDetector{}, // Must be before ApacheCommonDetector
+			&ApacheCommonDetector{},
+			&DockerDetector{},
+			&RailsDetector{},
+			&SyslogDetector{},
+			&GoStandardDetector{},
 		},
 		previousFormat: UnknownFormat,
 	}
@@ -67,7 +67,7 @@ func (p *Parser) DetectFormat(line string) LogFormat {
 	if previousDetector != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 		defer cancel()
-		
+
 		if previousDetector.Detect(ctx, line) {
 			return previousDetector.Format()
 		}
@@ -83,7 +83,7 @@ func (p *Parser) detectAllFormats(line string) LogFormat {
 	defer cancel()
 
 	resultChan := make(chan DetectionResult, len(p.detectors))
-	
+
 	// Start all detectors concurrently
 	for _, detector := range p.detectors {
 		go func(d FormatDetector) {
@@ -156,7 +156,7 @@ func (d *JSONDetector) Detect(ctx context.Context, line string) bool {
 		var js json.RawMessage
 		done <- json.Unmarshal([]byte(line), &js) == nil
 	}()
-	
+
 	select {
 	case result := <-done:
 		return result
@@ -187,17 +187,17 @@ func (d *LogfmtDetector) Detect(ctx context.Context, line string) bool {
 			done <- false
 			return
 		}
-		
+
 		kvPairs := 0
 		for _, part := range parts {
 			if strings.Contains(part, "=") && !strings.HasPrefix(part, "=") && !strings.HasSuffix(part, "=") {
 				kvPairs++
 			}
 		}
-		
+
 		done <- kvPairs > 0 && float64(kvPairs)/float64(len(parts)) > 0.5
 	}()
-	
+
 	select {
 	case result := <-done:
 		return result
@@ -221,6 +221,7 @@ func (d *LogfmtDetector) PatternLength() int {
 type ApacheCommonDetector struct{}
 
 const apacheCommonPattern = `^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3} - - \[\d{2}\/\w{3}\/\d{4}:\d{2}:\d{2}:\d{2} [+-]\d{4}\] "[A-Z]+ .* HTTP\/\d\.\d" \d{3} \d+$`
+
 var apacheCommonRegex = regexp.MustCompile(apacheCommonPattern)
 
 func (d *ApacheCommonDetector) Detect(ctx context.Context, line string) bool {
@@ -228,7 +229,7 @@ func (d *ApacheCommonDetector) Detect(ctx context.Context, line string) bool {
 	go func() {
 		done <- apacheCommonRegex.MatchString(line)
 	}()
-	
+
 	select {
 	case result := <-done:
 		return result
@@ -252,6 +253,7 @@ func (d *ApacheCommonDetector) PatternLength() int {
 type NginxDetector struct{}
 
 const nginxPattern = `^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3} - - \[\d{2}\/\w{3}\/\d{4}:\d{2}:\d{2}:\d{2} [+-]\d{4}\] "[A-Z]+ .* HTTP\/\d\.\d" \d{3} \d+ ".*" ".*"$`
+
 var nginxRegex = regexp.MustCompile(nginxPattern)
 
 func (d *NginxDetector) Detect(ctx context.Context, line string) bool {
@@ -259,7 +261,7 @@ func (d *NginxDetector) Detect(ctx context.Context, line string) bool {
 	go func() {
 		done <- nginxRegex.MatchString(line)
 	}()
-	
+
 	select {
 	case result := <-done:
 		return result
@@ -283,6 +285,7 @@ func (d *NginxDetector) PatternLength() int {
 type SyslogDetector struct{}
 
 const syslogPattern = `^\w{3} \d{1,2} \d{2}:\d{2}:\d{2} \S+ \S+\[\d+\]:`
+
 var syslogRegex = regexp.MustCompile(syslogPattern)
 
 func (d *SyslogDetector) Detect(ctx context.Context, line string) bool {
@@ -290,7 +293,7 @@ func (d *SyslogDetector) Detect(ctx context.Context, line string) bool {
 	go func() {
 		done <- syslogRegex.MatchString(line)
 	}()
-	
+
 	select {
 	case result := <-done:
 		return result
@@ -314,6 +317,7 @@ func (d *SyslogDetector) PatternLength() int {
 type GoStandardDetector struct{}
 
 const goStandardPattern = `^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}`
+
 var goStandardRegex = regexp.MustCompile(goStandardPattern)
 
 func (d *GoStandardDetector) Detect(ctx context.Context, line string) bool {
@@ -321,7 +325,7 @@ func (d *GoStandardDetector) Detect(ctx context.Context, line string) bool {
 	go func() {
 		done <- goStandardRegex.MatchString(line)
 	}()
-	
+
 	select {
 	case result := <-done:
 		return result
@@ -345,6 +349,7 @@ func (d *GoStandardDetector) PatternLength() int {
 type RailsDetector struct{}
 
 const railsPattern = `^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] \w+( --|  \w)`
+
 var railsRegex = regexp.MustCompile(railsPattern)
 
 func (d *RailsDetector) Detect(ctx context.Context, line string) bool {
@@ -352,7 +357,7 @@ func (d *RailsDetector) Detect(ctx context.Context, line string) bool {
 	go func() {
 		done <- railsRegex.MatchString(line)
 	}()
-	
+
 	select {
 	case result := <-done:
 		return result
@@ -376,6 +381,7 @@ func (d *RailsDetector) PatternLength() int {
 type DockerDetector struct{}
 
 const dockerPattern = `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s+[A-Z]+`
+
 var dockerRegex = regexp.MustCompile(dockerPattern)
 
 func (d *DockerDetector) Detect(ctx context.Context, line string) bool {
@@ -383,7 +389,7 @@ func (d *DockerDetector) Detect(ctx context.Context, line string) bool {
 	go func() {
 		done <- dockerRegex.MatchString(line)
 	}()
-	
+
 	select {
 	case result := <-done:
 		return result
@@ -407,6 +413,7 @@ func (d *DockerDetector) PatternLength() int {
 type KubernetesDetector struct{}
 
 const kubernetesPattern = `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z \d+ \S+:\d+\] `
+
 var kubernetesRegex = regexp.MustCompile(kubernetesPattern)
 
 func (d *KubernetesDetector) Detect(ctx context.Context, line string) bool {
@@ -414,7 +421,7 @@ func (d *KubernetesDetector) Detect(ctx context.Context, line string) bool {
 	go func() {
 		done <- kubernetesRegex.MatchString(line)
 	}()
-	
+
 	select {
 	case result := <-done:
 		return result
@@ -438,6 +445,7 @@ func (d *KubernetesDetector) PatternLength() int {
 type HerokuDetector struct{}
 
 const herokuPattern = `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2} app\[\S+\]:`
+
 var herokuRegex = regexp.MustCompile(herokuPattern)
 
 func (d *HerokuDetector) Detect(ctx context.Context, line string) bool {
@@ -445,7 +453,7 @@ func (d *HerokuDetector) Detect(ctx context.Context, line string) bool {
 	go func() {
 		done <- herokuRegex.MatchString(line)
 	}()
-	
+
 	select {
 	case result := <-done:
 		return result

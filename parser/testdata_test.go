@@ -55,7 +55,7 @@ func TestDetectionWithTestData(t *testing.T) {
 				if detectedFormat == tc.expectedFormat {
 					correctDetections++
 				} else {
-					t.Logf("Line %d: Expected %v, got %v for line: %s", 
+					t.Logf("Line %d: Expected %v, got %v for line: %s",
 						lineCount, tc.expectedFormat, detectedFormat, line)
 				}
 			}
@@ -69,10 +69,10 @@ func TestDetectionWithTestData(t *testing.T) {
 			minAccuracy := 0.8
 
 			if accuracy < minAccuracy {
-				t.Errorf("%s: Detection accuracy too low: %.2f%% (%d/%d). Expected at least %.0f%%", 
+				t.Errorf("%s: Detection accuracy too low: %.2f%% (%d/%d). Expected at least %.0f%%",
 					tc.description, accuracy*100, correctDetections, lineCount, minAccuracy*100)
 			} else {
-				t.Logf("%s: Detection accuracy: %.2f%% (%d/%d)", 
+				t.Logf("%s: Detection accuracy: %.2f%% (%d/%d)",
 					tc.description, accuracy*100, correctDetections, lineCount)
 			}
 		})
@@ -82,7 +82,7 @@ func TestDetectionWithTestData(t *testing.T) {
 // TestMixedFormatFile tests the mixed format file to ensure different formats are detected
 func TestMixedFormatFile(t *testing.T) {
 	parser := NewParser()
-	
+
 	testdataPath := filepath.Join("..", "testdata", "mixed.log")
 	file, err := os.Open(testdataPath)
 	if err != nil {
@@ -91,18 +91,18 @@ func TestMixedFormatFile(t *testing.T) {
 	defer file.Close()
 
 	expectedFormats := []LogFormat{
-		JSONFormat,          // JSON log entry
-		LogfmtFormat,        // Logfmt entry  
-		ApacheCommonFormat,  // Apache log
-		SyslogFormat,        // Syslog entry
-		GoStandardFormat,    // Go standard log
-		RailsFormat,         // Rails log entry
-		DockerFormat,        // Docker container log
-		KubernetesFormat,    // Kubernetes pod log
-		HerokuFormat,        // Heroku dyno log
-		NginxFormat,         // Nginx log (has user agent)
-		JSONFormat,          // Another JSON entry
-		UnknownFormat,       // Unknown format line
+		JSONFormat,         // JSON log entry
+		LogfmtFormat,       // Logfmt entry
+		ApacheCommonFormat, // Apache log
+		SyslogFormat,       // Syslog entry
+		GoStandardFormat,   // Go standard log
+		RailsFormat,        // Rails log entry
+		DockerFormat,       // Docker container log
+		KubernetesFormat,   // Kubernetes pod log
+		HerokuFormat,       // Heroku dyno log
+		NginxFormat,        // Nginx log (has user agent)
+		JSONFormat,         // Another JSON entry
+		UnknownFormat,      // Unknown format line
 	}
 
 	scanner := bufio.NewScanner(file)
@@ -122,7 +122,7 @@ func TestMixedFormatFile(t *testing.T) {
 		expectedFormat := expectedFormats[lineIndex]
 
 		if detectedFormat != expectedFormat {
-			t.Errorf("Line %d: Expected format %v, got %v for line: %s", 
+			t.Errorf("Line %d: Expected format %v, got %v for line: %s",
 				lineIndex+1, expectedFormat, detectedFormat, line)
 		}
 
@@ -137,7 +137,7 @@ func TestMixedFormatFile(t *testing.T) {
 // BenchmarkTestDataDetection benchmarks format detection on real test data
 func BenchmarkTestDataDetection(b *testing.B) {
 	parser := NewParser()
-	
+
 	// Read a sample of lines from different files
 	testLines := []string{
 		`{"timestamp":"2025-01-19T08:30:00Z","level":"INFO","service":"api"}`,

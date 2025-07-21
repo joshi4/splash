@@ -96,7 +96,7 @@ func TestSearchFunctionality(t *testing.T) {
 
 			// Test colorization with search
 			result := c.ColorizeLog(tt.line, parser.JSONFormat)
-			
+
 			if tt.shouldMatch {
 				// For regex patterns, we need to verify the match differently
 				// since the result contains the actual matched text, not the pattern
@@ -146,7 +146,7 @@ func TestSearchHighlightingWithDifferentFormats(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.format.String(), func(t *testing.T) {
 			result := c.ColorizeLog(tt.line, tt.format)
-			
+
 			// Should contain "ERROR" since all test lines contain it
 			if !strings.Contains(result, "ERROR") {
 				t.Errorf("Expected result to contain 'ERROR' for format %v, got: %q", tt.format, result)
@@ -157,7 +157,7 @@ func TestSearchHighlightingWithDifferentFormats(t *testing.T) {
 
 func TestInvalidRegex(t *testing.T) {
 	c := NewColorizer()
-	
+
 	// Test invalid regex pattern
 	err := c.SetSearchRegex("[invalid regex")
 	if err == nil {
@@ -167,14 +167,14 @@ func TestInvalidRegex(t *testing.T) {
 
 func TestNoSearchPattern(t *testing.T) {
 	c := NewColorizer()
-	
+
 	line := `{"level":"ERROR","message":"test"}`
-	
+
 	// Should not match when no search pattern is set
 	if c.matchesSearch(line) {
 		t.Error("Expected no match when no search pattern is set")
 	}
-	
+
 	// Colorization should work normally without highlighting
 	result := c.ColorizeLog(line, parser.JSONFormat)
 	if strings.Contains(result, ">>>") || strings.Contains(result, "<<<") {
@@ -187,7 +187,7 @@ func TestNoSearchPattern(t *testing.T) {
 func TestHerokuSearchMarkersNotLeftInOutput(t *testing.T) {
 	c := NewColorizer()
 	c.SetSearchString("FATAL")
-	
+
 	tests := []struct {
 		name string
 		line string
@@ -197,7 +197,7 @@ func TestHerokuSearchMarkersNotLeftInOutput(t *testing.T) {
 			line: "2025-01-19T08:32:00+00:00 app[worker.1]: FATAL Job processing failed",
 		},
 		{
-			name: "Search in message part should not leave markers", 
+			name: "Search in message part should not leave markers",
 			line: "2025-01-19T08:32:00+00:00 app[web.1]: ERROR FATAL connection timeout",
 		},
 		{
@@ -205,16 +205,16 @@ func TestHerokuSearchMarkersNotLeftInOutput(t *testing.T) {
 			line: "2025-01-19T08:32:00+00:00 app[FATAL.1]: INFO Application started",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := c.ColorizeLog(tt.line, parser.HerokuFormat)
-			
+
 			// Check that no search markers are left in the output
 			if strings.Contains(result, "⟦SEARCH_START⟧") || strings.Contains(result, "⟦SEARCH_END⟧") {
 				t.Errorf("Search markers found in output for line: %s\nResult: %s", tt.line, result)
 			}
-			
+
 			// If the search term is found in input, the output should contain it too
 			if strings.Contains(tt.line, "FATAL") {
 				if !strings.Contains(result, "FATAL") {
@@ -228,11 +228,11 @@ func TestHerokuSearchMarkersNotLeftInOutput(t *testing.T) {
 // TestJSONSinglePassSearchHighlighting verifies that JSON search highlighting works in a single pass
 func TestJSONSinglePassSearchHighlighting(t *testing.T) {
 	c := NewColorizer()
-	
+
 	tests := []struct {
-		name       string
-		line       string
-		searchTerm string
+		name        string
+		line        string
+		searchTerm  string
 		expectMatch bool
 	}{
 		{
@@ -242,7 +242,7 @@ func TestJSONSinglePassSearchHighlighting(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "Key highlighting in single pass", 
+			name:        "Key highlighting in single pass",
 			line:        `{"error_code":"E123","status":"ok"}`,
 			searchTerm:  "error",
 			expectMatch: true,
@@ -266,28 +266,28 @@ func TestJSONSinglePassSearchHighlighting(t *testing.T) {
 			expectMatch: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c.SetSearchString(tt.searchTerm)
 			result := c.ColorizeLog(tt.line, parser.JSONFormat)
-			
+
 			// The result should contain the search term
 			if !strings.Contains(result, tt.searchTerm) && tt.expectMatch {
-				t.Errorf("Expected search term '%s' to be present in result for line: %s\nResult: %s", 
+				t.Errorf("Expected search term '%s' to be present in result for line: %s\nResult: %s",
 					tt.searchTerm, tt.line, result)
 			}
-			
+
 			// Should not contain search markers
 			if strings.Contains(result, "⟦SEARCH_START⟧") || strings.Contains(result, "⟦SEARCH_END⟧") {
 				t.Errorf("Found search markers in single-pass result for line: %s\nResult: %s", tt.line, result)
 			}
-			
+
 			// JSON structure should remain valid (can be parsed after removing ANSI codes)
 			stripped := stripTestAnsiCodes(result)
 			var testData interface{}
 			if err := json.Unmarshal([]byte(stripped), &testData); err != nil {
-				t.Errorf("Result is not valid JSON after stripping ANSI codes: %v\nResult: %s\nStripped: %s", 
+				t.Errorf("Result is not valid JSON after stripping ANSI codes: %v\nResult: %s\nStripped: %s",
 					err, result, stripped)
 			}
 		})
@@ -298,20 +298,20 @@ func TestJSONSinglePassSearchHighlighting(t *testing.T) {
 func TestJSONSearchRegexSinglePass(t *testing.T) {
 	c := NewColorizer()
 	c.SetSearchRegex("ERR.*")
-	
+
 	line := `{"level":"ERROR","message":"Everything is working"}`
 	result := c.ColorizeLog(line, parser.JSONFormat)
-	
+
 	// Should contain the matched pattern
 	if !strings.Contains(result, "ERROR") {
 		t.Errorf("Expected regex match 'ERROR' to be present in result\nResult: %s", result)
 	}
-	
+
 	// Should not contain search markers
 	if strings.Contains(result, "⟦SEARCH_START⟧") || strings.Contains(result, "⟦SEARCH_END⟧") {
 		t.Errorf("Found search markers in single-pass regex result\nResult: %s", result)
 	}
-	
+
 	// JSON should remain valid
 	stripped := stripTestAnsiCodes(result)
 	var testData interface{}
@@ -322,25 +322,25 @@ func TestJSONSearchRegexSinglePass(t *testing.T) {
 
 func TestSearchPatternSwitching(t *testing.T) {
 	c := NewColorizer()
-	
+
 	line := `{"level":"ERROR","message":"database connection failed"}`
-	
+
 	// Set string search
 	c.SetSearchString("ERROR")
 	if !c.matchesSearch(line) {
 		t.Error("Expected match with string search")
 	}
-	
+
 	// Switch to regexp search - should clear string search
 	err := c.SetSearchRegex("database.*failed")
 	if err != nil {
 		t.Fatalf("Failed to set regexp: %v", err)
 	}
-	
+
 	if !c.matchesSearch(line) {
 		t.Error("Expected match with regexp search")
 	}
-	
+
 	// Switch back to string search - should clear regexp
 	c.SetSearchString("connection")
 	if !c.matchesSearch(line) {

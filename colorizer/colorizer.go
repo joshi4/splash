@@ -13,9 +13,9 @@ import (
 
 // Colorizer handles adding colors to log lines based on their format
 type Colorizer struct {
-	theme         *ColorTheme
-	searchString  string
-	searchRegex   *regexp.Regexp
+	theme        *ColorTheme
+	searchString string
+	searchRegex  *regexp.Regexp
 }
 
 // NewColorizer creates a new colorizer with adaptive theming
@@ -57,14 +57,14 @@ func (c *Colorizer) applyUnifiedSearchHighlighting(colorizedText string) string 
 
 	// Strip ANSI codes to work with plain text positions
 	plainText := c.stripAnsiCodes(colorizedText)
-	
+
 	// Build result preserving original styling for non-matching parts
 	result := strings.Builder{}
 	lastPlainEnd := 0
-	
+
 	// Find matches directly in plain text to avoid complex position mapping
 	var plainMatches []struct{ start, end int }
-	
+
 	if c.searchRegex != nil {
 		regexMatches := c.searchRegex.FindAllStringIndex(plainText, -1)
 		for _, match := range regexMatches {
@@ -83,33 +83,33 @@ func (c *Colorizer) applyUnifiedSearchHighlighting(colorizedText string) string 
 			startPos = actualPos + 1
 		}
 	}
-	
+
 	if len(plainMatches) == 0 {
 		return colorizedText
 	}
-	
+
 	for _, match := range plainMatches {
 		plainStart := match.start
 		plainEnd := match.end
-		
+
 		// Skip if this match is before our current position (overlapping matches)
 		if plainStart < lastPlainEnd {
 			continue
 		}
-		
+
 		// Add text before match (preserving original styling)
 		if plainStart > lastPlainEnd {
 			styledBefore := c.findStyledTextForPlainRange(colorizedText, plainText, lastPlainEnd, plainStart)
 			result.WriteString(styledBefore)
 		}
-		
+
 		// Add highlighted match (just the plain text with highlight styling)
 		matchText := plainText[plainStart:plainEnd]
 		result.WriteString(c.theme.UnifiedSearchHighlight.Render(matchText))
-		
+
 		lastPlainEnd = plainEnd
 	}
-	
+
 	// Add remaining text after last match (preserving original styling)
 	if lastPlainEnd < len(plainText) {
 		styledRemaining := c.findStyledTextForPlainRange(colorizedText, plainText, lastPlainEnd, len(plainText))
@@ -125,24 +125,24 @@ func (c *Colorizer) findStyledTextForPlainRange(colorizedText, plainText string,
 	if plainStart >= plainEnd || plainStart >= len(plainText) || plainEnd > len(plainText) {
 		return ""
 	}
-	
+
 	if plainStart == 0 && plainEnd == len(plainText) {
 		return colorizedText
 	}
-	
+
 	// If there are no ANSI codes, return the plain text range
 	if !strings.Contains(colorizedText, "\x1b[") {
 		return plainText[plainStart:plainEnd]
 	}
-	
+
 	// Find the corresponding positions in the colorized text
 	colorizedStart := c.findColorizedPosition(colorizedText, plainText, plainStart)
 	colorizedEnd := c.findColorizedPosition(colorizedText, plainText, plainEnd)
-	
+
 	if colorizedStart >= 0 && colorizedEnd >= 0 && colorizedEnd <= len(colorizedText) {
 		return colorizedText[colorizedStart:colorizedEnd]
 	}
-	
+
 	// Fallback: return plain text
 	return plainText[plainStart:plainEnd]
 }
@@ -158,9 +158,9 @@ type SearchMatch struct {
 func (c *Colorizer) findAllSearchMatches(text string) []SearchMatch {
 	// Strip ANSI codes to find matches in the actual text content
 	plainText := c.stripAnsiCodes(text)
-	
+
 	var matches []SearchMatch
-	
+
 	if c.searchRegex != nil {
 		// Handle regex search
 		regexMatches := c.searchRegex.FindAllStringIndex(plainText, -1)
@@ -168,7 +168,7 @@ func (c *Colorizer) findAllSearchMatches(text string) []SearchMatch {
 			// Convert positions in plain text to positions in colorized text
 			colorizedStart := c.findColorizedPosition(text, plainText, match[0])
 			colorizedEnd := c.findColorizedPosition(text, plainText, match[1])
-			
+
 			matches = append(matches, SearchMatch{
 				start: colorizedStart,
 				end:   colorizedEnd,
@@ -179,27 +179,27 @@ func (c *Colorizer) findAllSearchMatches(text string) []SearchMatch {
 		// Handle string search (case-sensitive)
 		searchLen := len(c.searchString)
 		startPos := 0
-		
+
 		for {
 			pos := strings.Index(plainText[startPos:], c.searchString)
 			if pos == -1 {
 				break
 			}
-			
+
 			actualPos := startPos + pos
 			colorizedStart := c.findColorizedPosition(text, plainText, actualPos)
 			colorizedEnd := c.findColorizedPosition(text, plainText, actualPos+searchLen)
-			
+
 			matches = append(matches, SearchMatch{
 				start: colorizedStart,
 				end:   colorizedEnd,
 				text:  c.searchString,
 			})
-			
+
 			startPos = actualPos + 1
 		}
 	}
-	
+
 	return matches
 }
 
@@ -208,15 +208,15 @@ func (c *Colorizer) matchesSearchPattern(text string) bool {
 	if !c.hasSearchPattern() {
 		return false
 	}
-	
+
 	if c.searchRegex != nil {
 		return c.searchRegex.MatchString(text)
 	}
-	
+
 	if c.searchString != "" {
 		return strings.Contains(text, c.searchString)
 	}
-	
+
 	return false
 }
 
@@ -226,10 +226,10 @@ func (c *Colorizer) applySearchHighlighting(text string, normalStyle lipgloss.St
 	if c.searchString == "" && c.searchRegex == nil {
 		return normalStyle.Render(text)
 	}
-	
+
 	// Find all search matches in the plain text
 	var matches []SearchMatch
-	
+
 	if c.searchRegex != nil {
 		// Handle regex search
 		regexMatches := c.searchRegex.FindAllStringIndex(text, -1)
@@ -244,13 +244,13 @@ func (c *Colorizer) applySearchHighlighting(text string, normalStyle lipgloss.St
 		// Handle string search (case-sensitive)
 		searchLen := len(c.searchString)
 		startPos := 0
-		
+
 		for {
 			pos := strings.Index(text[startPos:], c.searchString)
 			if pos == -1 {
 				break
 			}
-			
+
 			actualPos := startPos + pos
 			matches = append(matches, SearchMatch{
 				start: actualPos,
@@ -260,35 +260,35 @@ func (c *Colorizer) applySearchHighlighting(text string, normalStyle lipgloss.St
 			startPos = actualPos + searchLen
 		}
 	}
-	
+
 	if len(matches) == 0 {
 		return normalStyle.Render(text)
 	}
-	
+
 	// Build result with highlighted matches
 	result := strings.Builder{}
 	lastEnd := 0
-	
+
 	for _, match := range matches {
 		// Add text before match with normal style
 		if match.start > lastEnd {
 			beforeText := text[lastEnd:match.start]
 			result.WriteString(normalStyle.Render(beforeText))
 		}
-		
+
 		// Add highlighted match
 		matchText := text[match.start:match.end]
 		result.WriteString(c.theme.UnifiedSearchHighlight.Render(matchText))
-		
+
 		lastEnd = match.end
 	}
-	
+
 	// Add remaining text after last match
 	if lastEnd < len(text) {
 		remainingText := text[lastEnd:]
 		result.WriteString(normalStyle.Render(remainingText))
 	}
-	
+
 	return result.String()
 }
 
@@ -299,7 +299,7 @@ func (c *Colorizer) ColorizeLog(line string, format parser.LogFormat) string {
 	}
 
 	var result string
-	
+
 	// Apply colorization with integrated search highlighting (single-pass)
 	switch format {
 	case parser.JSONFormat:
@@ -325,7 +325,7 @@ func (c *Colorizer) ColorizeLog(line string, format parser.LogFormat) string {
 	default:
 		result = c.colorizeGenericLog(line)
 	}
-	
+
 	return result
 }
 
@@ -339,17 +339,17 @@ func (c *Colorizer) colorizeJSON(line string) string {
 	// Re-marshal with indentation to get clean formatting, then colorize
 	result := strings.Builder{}
 	result.WriteString(c.theme.Bracket.Render("{"))
-	
+
 	first := true
 	for key, value := range data {
 		if !first {
 			result.WriteString(", ")
 		}
 		first = false
-		
+
 		// Colorize key
 		result.WriteString(c.theme.Quote.Render(`"`))
-		
+
 		// Special handling for common log fields with search highlighting
 		keyStyle := c.theme.JSONKey
 		if c.isLogLevelKey(key) {
@@ -359,11 +359,11 @@ func (c *Colorizer) colorizeJSON(line string) string {
 		result.WriteString(styledKey)
 		result.WriteString(c.theme.Quote.Render(`"`))
 		result.WriteString(c.theme.Equals.Render(":"))
-		
+
 		// Colorize value based on key and type
 		result.WriteString(c.colorizeJSONValue(key, value))
 	}
-	
+
 	result.WriteString(c.theme.Bracket.Render("}"))
 	return result.String()
 }
@@ -413,25 +413,25 @@ func (c *Colorizer) colorizeJSONValue(key string, value interface{}) string {
 func (c *Colorizer) colorizeNestedJSONObject(obj map[string]interface{}) string {
 	result := strings.Builder{}
 	result.WriteString(c.theme.Bracket.Render("{"))
-	
+
 	first := true
 	for key, value := range obj {
 		if !first {
 			result.WriteString(", ")
 		}
 		first = false
-		
+
 		// Colorize nested key with search highlighting
 		result.WriteString(c.theme.Quote.Render(`"`))
 		styledKey := c.applySearchHighlighting(key, c.theme.JSONKey)
 		result.WriteString(styledKey)
 		result.WriteString(c.theme.Quote.Render(`"`))
 		result.WriteString(c.theme.Equals.Render(":"))
-		
+
 		// Recursively colorize nested value
 		result.WriteString(c.colorizeJSONValue(key, value))
 	}
-	
+
 	result.WriteString(c.theme.Bracket.Render("}"))
 	return result.String()
 }
@@ -440,16 +440,16 @@ func (c *Colorizer) colorizeNestedJSONObject(obj map[string]interface{}) string 
 func (c *Colorizer) colorizeJSONArray(arr []interface{}) string {
 	result := strings.Builder{}
 	result.WriteString(c.theme.Bracket.Render("["))
-	
+
 	for i, value := range arr {
 		if i > 0 {
 			result.WriteString(", ")
 		}
-		
+
 		// Colorize array element (use empty key for array elements)
 		result.WriteString(c.colorizeJSONValue("", value))
 	}
-	
+
 	result.WriteString(c.theme.Bracket.Render("]"))
 	return result.String()
 }
@@ -459,21 +459,21 @@ func (c *Colorizer) colorizeLogfmt(line string) string {
 	// Simple logfmt parsing - split by spaces and look for key=value pairs
 	parts := strings.Fields(line)
 	result := strings.Builder{}
-	
+
 	for i, part := range parts {
 		if i > 0 {
 			result.WriteString(" ")
 		}
-		
+
 		if strings.Contains(part, "=") && !strings.HasPrefix(part, "=") && !strings.HasSuffix(part, "=") {
 			// This is a key=value pair
 			kv := strings.SplitN(part, "=", 2)
 			if len(kv) == 2 {
 				key, value := kv[0], kv[1]
-				
+
 				// Remove quotes from value if present
 				cleanValue := strings.Trim(value, `"`)
-				
+
 				// Color the key with search highlighting
 				keyStyle := c.theme.LogfmtKey
 				if c.isLogLevelKey(key) {
@@ -481,7 +481,7 @@ func (c *Colorizer) colorizeLogfmt(line string) string {
 				}
 				result.WriteString(c.applySearchHighlighting(key, keyStyle))
 				result.WriteString(c.theme.Equals.Render("="))
-				
+
 				// Color the value based on key with search highlighting
 				if c.isLogLevelKey(key) {
 					if strings.HasPrefix(value, `"`) && strings.HasSuffix(value, `"`) {
@@ -510,7 +510,7 @@ func (c *Colorizer) colorizeLogfmt(line string) string {
 			}
 		}
 	}
-	
+
 	return result.String()
 }
 
@@ -519,11 +519,11 @@ func (c *Colorizer) colorizeApacheCommon(line string) string {
 	// Apache Common Log format: IP - - [timestamp] "method URL protocol" status size
 	re := regexp.MustCompile(`^(\S+) (\S+) (\S+) \[([^\]]+)\] "([A-Z]+) ([^"]*) ([^"]*)" (\d+) (\S+)`)
 	matches := re.FindStringSubmatch(line)
-	
+
 	if len(matches) != 10 {
 		return c.colorizeGenericLog(line)
 	}
-	
+
 	ip := matches[1]
 	timestamp := matches[4]
 	method := matches[5]
@@ -531,7 +531,7 @@ func (c *Colorizer) colorizeApacheCommon(line string) string {
 	protocol := matches[7]
 	status := matches[8]
 	size := matches[9]
-	
+
 	result := strings.Builder{}
 	// Apply search highlighting during colorization (single-pass)
 	result.WriteString(c.applySearchHighlighting(ip, c.theme.IP))
@@ -549,7 +549,7 @@ func (c *Colorizer) colorizeApacheCommon(line string) string {
 	result.WriteString(c.applySearchHighlighting(status, c.theme.GetHTTPStatusStyle(status)))
 	result.WriteString(" ")
 	result.WriteString(c.applySearchHighlighting(size, lipgloss.NewStyle()))
-	
+
 	return result.String()
 }
 
@@ -558,11 +558,11 @@ func (c *Colorizer) colorizeNginx(line string) string {
 	// Nginx format: IP - - [timestamp] "method URL protocol" status size "referer" "user-agent"
 	re := regexp.MustCompile(`^(\S+) (\S+) (\S+) \[([^\]]+)\] "([A-Z]+) ([^"]*) ([^"]*)" (\d+) (\S+) "([^"]*)" "([^"]*)"`)
 	matches := re.FindStringSubmatch(line)
-	
+
 	if len(matches) != 12 {
 		return c.colorizeApacheCommon(line) // Fallback to Apache format
 	}
-	
+
 	ip := matches[1]
 	timestamp := matches[4]
 	method := matches[5]
@@ -572,7 +572,7 @@ func (c *Colorizer) colorizeNginx(line string) string {
 	size := matches[9]
 	referer := matches[10]
 	userAgent := matches[11]
-	
+
 	result := strings.Builder{}
 	// Apply search highlighting during colorization (single-pass)
 	result.WriteString(c.applySearchHighlighting(ip, c.theme.IP))
@@ -596,7 +596,7 @@ func (c *Colorizer) colorizeNginx(line string) string {
 	result.WriteString(c.theme.Quote.Render(`" "`))
 	result.WriteString(c.applySearchHighlighting(userAgent, lipgloss.NewStyle()))
 	result.WriteString(c.theme.Quote.Render(`"`))
-	
+
 	return result.String()
 }
 
@@ -618,9 +618,9 @@ func (c *Colorizer) isServiceKey(key string) bool {
 
 func (c *Colorizer) looksLikeLogLevel(s string) bool {
 	upper := strings.ToUpper(s)
-	return upper == "ERROR" || upper == "WARN" || upper == "WARNING" || 
-		   upper == "INFO" || upper == "DEBUG" || upper == "TRACE" ||
-		   upper == "FATAL" || upper == "CRITICAL"
+	return upper == "ERROR" || upper == "WARN" || upper == "WARNING" ||
+		upper == "INFO" || upper == "DEBUG" || upper == "TRACE" ||
+		upper == "FATAL" || upper == "CRITICAL"
 }
 
 // colorizeSyslog adds colors to syslog format lines
@@ -628,17 +628,17 @@ func (c *Colorizer) colorizeSyslog(line string) string {
 	// Syslog format: "Jan 19 10:30:00 hostname myapp[1234]: ERROR: Database connection failed"
 	re := regexp.MustCompile(`^(\w{3} \d{1,2} \d{2}:\d{2}:\d{2}) (\S+) (\S+)\[(\d+)\]: (.*)`)
 	matches := re.FindStringSubmatch(line)
-	
+
 	if len(matches) != 6 {
 		return c.colorizeGenericLog(line) // Fallback
 	}
-	
+
 	timestamp := matches[1]
 	hostname := matches[2]
 	process := matches[3]
 	pid := matches[4]
 	message := matches[5]
-	
+
 	result := strings.Builder{}
 	// Apply search highlighting during colorization (single-pass)
 	result.WriteString(c.applySearchHighlighting(timestamp, c.theme.Timestamp))
@@ -650,7 +650,7 @@ func (c *Colorizer) colorizeSyslog(line string) string {
 	result.WriteString(c.applySearchHighlighting(pid, c.theme.PID))
 	result.WriteString(c.theme.Bracket.Render("]: "))
 	result.WriteString(c.colorizeMessageWithHighlighting(message))
-	
+
 	return result.String()
 }
 
@@ -658,40 +658,40 @@ func (c *Colorizer) colorizeGoStandard(line string) string {
 	// Go standard format: "2025/01/19 10:30:00 ERROR: Database connection failed"
 	re := regexp.MustCompile(`^(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}) (.*)`)
 	matches := re.FindStringSubmatch(line)
-	
+
 	if len(matches) != 3 {
 		return c.colorizeGenericLog(line)
 	}
-	
+
 	timestamp := matches[1]
 	message := matches[2]
-	
+
 	result := strings.Builder{}
 	// Apply search highlighting during colorization (single-pass)
 	result.WriteString(c.applySearchHighlighting(timestamp, c.theme.Timestamp))
 	result.WriteString(" ")
 	result.WriteString(c.colorizeMessageWithHighlighting(message))
-	
+
 	return result.String()
 }
 
 func (c *Colorizer) colorizeRails(line string) string {
 	// Rails format: "[2025-01-19 10:30:00] ERROR -- : Database connection failed"
 	// WEBrick format: "[2025-01-19 10:30:00] INFO  WEBrick 1.4.4"
-	
+
 	// Try Rails format first
 	railsRe := regexp.MustCompile(`^(\[[^\]]+\]) (\w+) (--) : (.*)`)
 	matches := railsRe.FindStringSubmatch(line)
-	
+
 	if len(matches) == 5 {
 		timestamp := matches[1]
 		level := matches[2]
 		separator := matches[3]
 		message := matches[4]
-		
+
 		result := strings.Builder{}
 		result.WriteString(c.theme.Bracket.Render("["))
-		timestampContent := timestamp[1:len(timestamp)-1] // Remove brackets
+		timestampContent := timestamp[1 : len(timestamp)-1] // Remove brackets
 		// Apply search highlighting during colorization (single-pass)
 		result.WriteString(c.applySearchHighlighting(timestampContent, c.theme.Timestamp))
 		result.WriteString(c.theme.Bracket.Render("] "))
@@ -700,32 +700,32 @@ func (c *Colorizer) colorizeRails(line string) string {
 		result.WriteString(c.applySearchHighlighting(separator, lipgloss.NewStyle()))
 		result.WriteString(" : ")
 		result.WriteString(c.applySearchHighlighting(message, lipgloss.NewStyle()))
-		
+
 		return result.String()
 	}
-	
+
 	// Try WEBrick format
 	webrickRe := regexp.MustCompile(`^(\[[^\]]+\]) (\w+)\s+(.*)`)
 	matches = webrickRe.FindStringSubmatch(line)
-	
+
 	if len(matches) == 4 {
 		timestamp := matches[1]
 		level := matches[2]
 		message := matches[3]
-		
+
 		result := strings.Builder{}
 		result.WriteString(c.theme.Bracket.Render("["))
-		timestampContent := timestamp[1:len(timestamp)-1] // Remove brackets
+		timestampContent := timestamp[1 : len(timestamp)-1] // Remove brackets
 		// Apply search highlighting during colorization (single-pass)
 		result.WriteString(c.applySearchHighlighting(timestampContent, c.theme.Timestamp))
 		result.WriteString(c.theme.Bracket.Render("] "))
 		result.WriteString(c.applySearchHighlighting(level, c.theme.GetLogLevelStyle(level)))
 		result.WriteString(" ")
 		result.WriteString(c.applySearchHighlighting(message, c.theme.JSONValue))
-		
+
 		return result.String()
 	}
-	
+
 	return c.colorizeGenericLog(line)
 }
 
@@ -733,15 +733,15 @@ func (c *Colorizer) colorizeDocker(line string) string {
 	// Docker format: "2025-01-19T10:30:00.123456789Z ERROR Database connection failed"
 	re := regexp.MustCompile(`^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)\s+([A-Z]+)\s+(.*)`)
 	matches := re.FindStringSubmatch(line)
-	
+
 	if len(matches) != 4 {
 		return c.colorizeGenericLog(line)
 	}
-	
+
 	timestamp := matches[1]
 	level := matches[2]
 	message := matches[3]
-	
+
 	result := strings.Builder{}
 	// Apply search highlighting during colorization (single-pass)
 	result.WriteString(c.applySearchHighlighting(timestamp, c.theme.Timestamp))
@@ -749,7 +749,7 @@ func (c *Colorizer) colorizeDocker(line string) string {
 	result.WriteString(c.applySearchHighlighting(level, c.theme.GetLogLevelStyle(level)))
 	result.WriteString(" ")
 	result.WriteString(c.applySearchHighlighting(message, lipgloss.NewStyle()))
-	
+
 	return result.String()
 }
 
@@ -757,17 +757,17 @@ func (c *Colorizer) colorizeKubernetes(line string) string {
 	// Kubernetes format: "2025-01-19T10:30:00.123Z 1 main.go:42] ERROR Database connection failed"
 	re := regexp.MustCompile(`^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z) (\d+) ([^:]+):(\d+)\] (.*)`)
 	matches := re.FindStringSubmatch(line)
-	
+
 	if len(matches) != 6 {
 		return c.colorizeGenericLog(line)
 	}
-	
+
 	timestamp := matches[1]
 	severity := matches[2]
 	filename := matches[3]
 	lineNum := matches[4]
 	message := matches[5]
-	
+
 	result := strings.Builder{}
 	// Apply search highlighting during colorization (single-pass)
 	result.WriteString(c.applySearchHighlighting(timestamp, c.theme.Timestamp))
@@ -779,7 +779,7 @@ func (c *Colorizer) colorizeKubernetes(line string) string {
 	result.WriteString(c.applySearchHighlighting(lineNum, c.theme.LineNum))
 	result.WriteString(c.theme.Bracket.Render("] "))
 	result.WriteString(c.colorizeMessageWithHighlighting(message))
-	
+
 	return result.String()
 }
 
@@ -787,15 +787,15 @@ func (c *Colorizer) colorizeHeroku(line string) string {
 	// Heroku format: "2025-01-19T10:30:00+00:00 app[web.1]: ERROR Database connection failed"
 	re := regexp.MustCompile(`^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}) app\[([^\]]+)\]: (.*)`)
 	matches := re.FindStringSubmatch(line)
-	
+
 	if len(matches) != 4 {
 		return c.colorizeGenericLog(line)
 	}
-	
+
 	timestamp := matches[1]
 	dyno := matches[2]
 	message := matches[3]
-	
+
 	result := strings.Builder{}
 	// Apply search highlighting during colorization (single-pass)
 	result.WriteString(c.applySearchHighlighting(timestamp, c.theme.Timestamp))
@@ -804,7 +804,7 @@ func (c *Colorizer) colorizeHeroku(line string) string {
 	result.WriteString(c.applySearchHighlighting(dyno, c.theme.Service))
 	result.WriteString(c.theme.Bracket.Render("]: "))
 	result.WriteString(c.colorizeMessageWithHighlighting(message))
-	
+
 	return result.String()
 }
 
@@ -815,11 +815,11 @@ func (c *Colorizer) colorizeMessage(message string) string {
 	if len(parts) == 0 {
 		return message
 	}
-	
+
 	firstWord := parts[0]
 	// Remove trailing colon if present
 	cleanWord := strings.TrimSuffix(firstWord, ":")
-	
+
 	if c.looksLikeLogLevel(cleanWord) {
 		result := strings.Builder{}
 		if strings.HasSuffix(firstWord, ":") {
@@ -830,14 +830,14 @@ func (c *Colorizer) colorizeMessage(message string) string {
 			styledLevel := c.theme.GetLogLevelStyle(cleanWord).Render(cleanWord)
 			result.WriteString(styledLevel)
 		}
-		
+
 		if len(parts) > 1 {
 			result.WriteString(" ")
 			result.WriteString(strings.Join(parts[1:], " "))
 		}
 		return result.String()
 	}
-	
+
 	return message
 }
 
@@ -848,11 +848,11 @@ func (c *Colorizer) colorizeMessageWithHighlighting(message string) string {
 	if len(parts) == 0 {
 		return c.applySearchHighlighting(message, lipgloss.NewStyle())
 	}
-	
+
 	firstWord := parts[0]
 	// Remove trailing colon if present
 	cleanWord := strings.TrimSuffix(firstWord, ":")
-	
+
 	if c.looksLikeLogLevel(cleanWord) {
 		result := strings.Builder{}
 		if strings.HasSuffix(firstWord, ":") {
@@ -863,7 +863,7 @@ func (c *Colorizer) colorizeMessageWithHighlighting(message string) string {
 			styledLevel := c.applySearchHighlighting(cleanWord, c.theme.GetLogLevelStyle(cleanWord))
 			result.WriteString(styledLevel)
 		}
-		
+
 		if len(parts) > 1 {
 			result.WriteString(" ")
 			remainingMessage := strings.Join(parts[1:], " ")
@@ -871,7 +871,7 @@ func (c *Colorizer) colorizeMessageWithHighlighting(message string) string {
 		}
 		return result.String()
 	}
-	
+
 	return c.applySearchHighlighting(message, lipgloss.NewStyle())
 }
 
@@ -880,12 +880,12 @@ func (c *Colorizer) colorizeGenericLog(line string) string {
 	// Look for common patterns in any log line
 	words := strings.Fields(line)
 	result := strings.Builder{}
-	
+
 	for i, word := range words {
 		if i > 0 {
 			result.WriteString(" ")
 		}
-		
+
 		cleanWord := strings.TrimSuffix(word, ":")
 		if c.looksLikeLogLevel(cleanWord) {
 			if strings.HasSuffix(word, ":") {
@@ -901,7 +901,7 @@ func (c *Colorizer) colorizeGenericLog(line string) string {
 			result.WriteString(styledWord)
 		}
 	}
-	
+
 	return result.String()
 }
 
@@ -916,7 +916,7 @@ func (c *Colorizer) markSearchMatches(line string) string {
 	if !c.matchesSearch(line) {
 		return line
 	}
-	
+
 	var searchTexts []string
 	if c.searchRegex != nil {
 		// Find all regex matches
@@ -927,9 +927,9 @@ func (c *Colorizer) markSearchMatches(line string) string {
 	} else {
 		return line
 	}
-	
+
 	result := line
-	
+
 	// Mark each unique search text
 	seen := make(map[string]bool)
 	for _, searchText := range searchTexts {
@@ -937,12 +937,12 @@ func (c *Colorizer) markSearchMatches(line string) string {
 			continue
 		}
 		seen[searchText] = true
-		
+
 		// Replace all occurrences with marked versions
 		marked := searchStartMarker + searchText + searchEndMarker
 		result = strings.ReplaceAll(result, searchText, marked)
 	}
-	
+
 	return result
 }
 
@@ -974,7 +974,7 @@ func (c *Colorizer) applyPostColorizationSearchHighlight(colorizedText, original
 	if !c.matchesSearch(originalText) {
 		return colorizedText
 	}
-	
+
 	var searchTexts []string
 	if c.searchRegex != nil {
 		// Find all regex matches in the original text
@@ -983,9 +983,9 @@ func (c *Colorizer) applyPostColorizationSearchHighlight(colorizedText, original
 	} else if c.searchString != "" {
 		searchTexts = []string{c.searchString}
 	}
-	
+
 	result := colorizedText
-	
+
 	// Apply highlighting to each unique search text
 	seen := make(map[string]bool)
 	for _, searchText := range searchTexts {
@@ -993,11 +993,11 @@ func (c *Colorizer) applyPostColorizationSearchHighlight(colorizedText, original
 			continue
 		}
 		seen[searchText] = true
-		
+
 		// Use JSON-aware highlighting that preserves structure
 		result = c.highlightInColorizedJSONText(result, searchText, originalText)
 	}
-	
+
 	return result
 }
 
@@ -1009,7 +1009,7 @@ func (c *Colorizer) highlightInColorizedJSONText(colorizedText, searchText, orig
 		// If JSON parsing fails, fall back to simple highlighting
 		return c.highlightInColorizedText(colorizedText, searchText)
 	}
-	
+
 	// Instead of trying to map positions (unreliable due to JSON reordering),
 	// apply highlighting by finding and replacing all occurrences in the colorized text
 	return c.highlightJSONTextSimple(colorizedText, searchText)
@@ -1020,7 +1020,7 @@ func (c *Colorizer) highlightJSONTextSimple(colorizedText, searchText string) st
 	// Simple but effective approach: find all occurrences of the search text
 	// and highlight them, but be careful about JSON structure
 	plainText := c.stripAnsiCodes(colorizedText)
-	
+
 	// Find all positions where the search text appears
 	var positions []int
 	startPos := 0
@@ -1032,16 +1032,16 @@ func (c *Colorizer) highlightJSONTextSimple(colorizedText, searchText string) st
 		positions = append(positions, startPos+pos)
 		startPos = startPos + pos + 1
 	}
-	
+
 	if len(positions) == 0 {
 		return colorizedText
 	}
-	
+
 	// Apply highlighting from right to left to preserve positions
 	result := colorizedText
 	for i := len(positions) - 1; i >= 0; i-- {
 		plainPos := positions[i]
-		
+
 		// Check if this match is inside a JSON key (between quotes followed by colon)
 		if c.isPositionInJSONKey(plainText, plainPos, len(searchText)) {
 			// Highlight the entire key
@@ -1051,7 +1051,7 @@ func (c *Colorizer) highlightJSONTextSimple(colorizedText, searchText string) st
 			result = c.highlightJSONValueAtPosition(result, plainPos, searchText, plainText)
 		}
 	}
-	
+
 	return result
 }
 
@@ -1062,19 +1062,19 @@ func (c *Colorizer) highlightJSONValueAtPosition(colorizedText string, plainPos 
 	if start == -1 || end == -1 {
 		return colorizedText
 	}
-	
+
 	// Find corresponding positions in colorized text
 	colorizedStart := c.findColorizedPosition(colorizedText, c.stripAnsiCodes(colorizedText), start)
 	colorizedEnd := c.findColorizedPosition(colorizedText, c.stripAnsiCodes(colorizedText), end)
-	
+
 	// Extract the value (including quotes)
 	before := colorizedText[:colorizedStart]
 	value := colorizedText[colorizedStart:colorizedEnd]
 	after := colorizedText[colorizedEnd:]
-	
+
 	// Apply highlighting to the entire quoted value
 	highlightedValue := c.theme.JSONSearchHighlight.Render(value)
-	
+
 	return before + highlightedValue + after
 }
 
@@ -1083,25 +1083,25 @@ func (c *Colorizer) isPositionInJSONKey(plainText string, pos, length int) bool 
 	// Find the enclosing quotes
 	beforePos := plainText[:pos]
 	afterPos := plainText[pos+length:]
-	
+
 	// Find the last quote before the position
 	lastQuote := strings.LastIndex(beforePos, `"`)
 	if lastQuote == -1 {
 		return false
 	}
-	
+
 	// Find the next quote after the position
 	nextQuote := strings.Index(afterPos, `"`)
 	if nextQuote == -1 {
 		return false
 	}
-	
+
 	// Check what comes after the closing quote
 	afterQuotePos := pos + length + nextQuote + 1
 	if afterQuotePos >= len(plainText) {
 		return false
 	}
-	
+
 	remaining := strings.TrimSpace(plainText[afterQuotePos:])
 	return strings.HasPrefix(remaining, ":")
 }
@@ -1114,19 +1114,19 @@ func (c *Colorizer) highlightJSONKeyAtPosition(colorizedText string, pos int, se
 		// Fallback to simple highlighting
 		colorizedPos := c.findColorizedPosition(colorizedText, c.stripAnsiCodes(colorizedText), pos)
 		before := colorizedText[:colorizedPos]
-		match := colorizedText[colorizedPos:colorizedPos+len(searchText)]
+		match := colorizedText[colorizedPos : colorizedPos+len(searchText)]
 		after := colorizedText[colorizedPos+len(searchText):]
 		return before + c.theme.JSONSearchHighlight.Render(match) + after
 	}
-	
+
 	// Map to colorized text positions
 	colorizedKeyStart := c.findColorizedPosition(colorizedText, c.stripAnsiCodes(colorizedText), keyStart)
 	colorizedKeyEnd := c.findColorizedPosition(colorizedText, c.stripAnsiCodes(colorizedText), keyEnd)
-	
+
 	before := colorizedText[:colorizedKeyStart]
 	keyText := colorizedText[colorizedKeyStart:colorizedKeyEnd]
 	after := colorizedText[colorizedKeyEnd:]
-	
+
 	highlightedKey := c.theme.JSONSearchHighlight.Render(keyText)
 	return before + highlightedKey + after
 }
@@ -1138,20 +1138,20 @@ func (c *Colorizer) findKeyBoundsAtPosition(plainText string, pos int) (int, int
 	if keyStart == -1 {
 		return -1, -1
 	}
-	
+
 	// Find the closing quote
 	keyEnd := strings.Index(plainText[pos:], `"`)
 	if keyEnd == -1 {
 		return -1, -1
 	}
 	keyEnd = pos + keyEnd + 1 // Include the closing quote
-	
+
 	// Verify this is actually a key
 	afterKey := strings.TrimSpace(plainText[keyEnd:])
 	if !strings.HasPrefix(afterKey, ":") {
 		return -1, -1
 	}
-	
+
 	return keyStart, keyEnd
 }
 
@@ -1164,7 +1164,7 @@ type JSONSearchMatch struct {
 // findJSONSearchMatches finds search matches and determines if they're in keys or values
 func (c *Colorizer) findJSONSearchMatches(jsonText, searchText string) []JSONSearchMatch {
 	var matches []JSONSearchMatch
-	
+
 	// Simple approach: find all occurrences and analyze context
 	startPos := 0
 	for {
@@ -1173,18 +1173,18 @@ func (c *Colorizer) findJSONSearchMatches(jsonText, searchText string) []JSONSea
 			break
 		}
 		absolutePos := startPos + pos
-		
+
 		// Determine if this match is in a key or value by analyzing surrounding context
 		inValue := c.isSearchMatchInJSONValue(jsonText, absolutePos, len(searchText))
-		
+
 		matches = append(matches, JSONSearchMatch{
 			Position: absolutePos,
 			InValue:  inValue,
 		})
-		
+
 		startPos = absolutePos + 1
 	}
-	
+
 	return matches
 }
 
@@ -1196,23 +1196,23 @@ func (c *Colorizer) highlightJSONKey(colorizedText string, matchPos int, searchT
 		// Fallback: highlight just the match if we can't find key bounds
 		colorizedPos := c.findColorizedPosition(colorizedText, plainText, matchPos)
 		before := colorizedText[:colorizedPos]
-		match := colorizedText[colorizedPos:colorizedPos+len(searchText)]
+		match := colorizedText[colorizedPos : colorizedPos+len(searchText)]
 		after := colorizedText[colorizedPos+len(searchText):]
 		return before + c.theme.SearchHighlight.Render(match) + after
 	}
-	
+
 	// Map the key bounds from plain text to colorized text
 	colorizedKeyStart := c.findColorizedPosition(colorizedText, plainText, keyStart)
 	colorizedKeyEnd := c.findColorizedPosition(colorizedText, plainText, keyEnd)
-	
+
 	// Extract the entire quoted key from colorized text
 	before := colorizedText[:colorizedKeyStart]
 	keyWithQuotes := colorizedText[colorizedKeyStart:colorizedKeyEnd]
 	after := colorizedText[colorizedKeyEnd:]
-	
+
 	// Apply highlighting to the entire quoted key
 	highlightedKey := c.theme.SearchHighlight.Render(keyWithQuotes)
-	
+
 	return before + highlightedKey + after
 }
 
@@ -1223,20 +1223,20 @@ func (c *Colorizer) findJSONKeyBounds(plainText string, matchPos int) (int, int)
 	if keyStart == -1 {
 		return -1, -1
 	}
-	
+
 	// Find the closing quote of the key
 	keyEnd := strings.Index(plainText[matchPos:], `"`)
 	if keyEnd == -1 {
 		return -1, -1
 	}
 	keyEnd = matchPos + keyEnd + 1 // Include the closing quote
-	
+
 	// Verify this is actually a key by checking what follows the closing quote
 	afterKey := strings.TrimSpace(plainText[keyEnd:])
 	if !strings.HasPrefix(afterKey, ":") {
 		return -1, -1 // Not a key
 	}
-	
+
 	return keyStart, keyEnd
 }
 
@@ -1245,32 +1245,32 @@ func (c *Colorizer) isSearchMatchInJSONValue(jsonText string, matchPos, matchLen
 	// Look backwards from match position to find the nearest quote and colon
 	// If we find a colon before a quote, we're likely in a value
 	// If we find a quote before a colon, we might be in a key
-	
+
 	beforeMatch := jsonText[:matchPos]
 	afterMatch := jsonText[matchPos+matchLen:]
-	
+
 	// Find the last quote before our match
 	lastQuotePos := strings.LastIndex(beforeMatch, `"`)
 	if lastQuotePos == -1 {
 		return false // Not in quotes at all
 	}
-	
+
 	// Find the next quote after our match
 	nextQuotePos := strings.Index(afterMatch, `"`)
 	if nextQuotePos == -1 {
 		return false // Not properly quoted
 	}
-	
+
 	// Check what comes after the closing quote
 	afterQuoteText := jsonText[matchPos+matchLen+nextQuotePos+1:]
 	afterQuoteText = strings.TrimSpace(afterQuoteText)
-	
+
 	// If the character after the closing quote is ':', we're in a key
 	// If it's ',' or '}' or ']', we're in a value
 	if strings.HasPrefix(afterQuoteText, ":") {
 		return false // This is a key
 	}
-	
+
 	return true // This is likely a value
 }
 
@@ -1278,7 +1278,7 @@ func (c *Colorizer) isSearchMatchInJSONValue(jsonText string, matchPos, matchLen
 func (c *Colorizer) highlightInColorizedText(colorizedText, searchText string) string {
 	// Strip ANSI codes to find plain text positions
 	plainText := c.stripAnsiCodes(colorizedText)
-	
+
 	// Find all occurrences of the search text in plain text
 	var positions []int
 	startPos := 0
@@ -1290,39 +1290,37 @@ func (c *Colorizer) highlightInColorizedText(colorizedText, searchText string) s
 		positions = append(positions, startPos+pos)
 		startPos = startPos + pos + 1 // Move past this match for next search
 	}
-	
+
 	if len(positions) == 0 {
 		return colorizedText
 	}
-	
+
 	// Apply highlighting from right to left to preserve positions
 	result := colorizedText
 	for i := len(positions) - 1; i >= 0; i-- {
 		plainPos := positions[i]
 		colorizedPos := c.findColorizedPosition(result, c.stripAnsiCodes(result), plainPos)
-		
+
 		// Extract the search text at this position in the colorized string
 		before := result[:colorizedPos]
-		matchedText := result[colorizedPos:colorizedPos+len(searchText)]
+		matchedText := result[colorizedPos : colorizedPos+len(searchText)]
 		after := result[colorizedPos+len(searchText):]
-		
+
 		// Apply search highlighting
 		highlightedText := c.theme.SearchHighlight.Render(matchedText)
 		result = before + highlightedText + after
 	}
-	
+
 	return result
 }
-
-
 
 // simpleSearchHighlight applies bold highlighting to search matches in colorized text
 func (c *Colorizer) simpleSearchHighlight(colorizedText, originalText string) string {
 	var searchTexts []string
-	
+
 	// Strip ANSI codes from original text before finding matches
 	cleanOriginalText := c.stripAnsiCodes(originalText)
-	
+
 	if c.searchRegex != nil {
 		// Find all regex matches in the clean original text
 		matches := c.searchRegex.FindAllString(cleanOriginalText, -1)
@@ -1332,9 +1330,9 @@ func (c *Colorizer) simpleSearchHighlight(colorizedText, originalText string) st
 	} else {
 		return colorizedText
 	}
-	
+
 	result := colorizedText
-	
+
 	// Apply highlighting to each unique search text while preserving colors
 	seen := make(map[string]bool)
 	for _, searchText := range searchTexts {
@@ -1342,10 +1340,10 @@ func (c *Colorizer) simpleSearchHighlight(colorizedText, originalText string) st
 			continue
 		}
 		seen[searchText] = true
-		
+
 		result = c.highlightTextPreservingColors(result, searchText)
 	}
-	
+
 	return result
 }
 
@@ -1354,14 +1352,14 @@ func (c *Colorizer) highlightTextPreservingColors(colorizedText, searchText stri
 	if searchText == "" {
 		return colorizedText
 	}
-	
+
 	// Work with clean text to find matches, but apply highlighting to colorized text
 	cleanText := c.stripAnsiCodes(colorizedText)
-	
+
 	result := ""
 	colorizedRemaining := colorizedText
 	cleanRemaining := cleanText
-	
+
 	for {
 		// Find the next occurrence of the search text in clean text
 		cleanPos := strings.Index(cleanRemaining, searchText)
@@ -1370,21 +1368,21 @@ func (c *Colorizer) highlightTextPreservingColors(colorizedText, searchText stri
 			result += colorizedRemaining
 			break
 		}
-		
+
 		// Find the corresponding position in the colorized text
 		colorizedPos := c.findColorizedPosition(colorizedRemaining, cleanRemaining, cleanPos)
-		
+
 		// Extract parts from colorized text
 		before := colorizedRemaining[:colorizedPos]
-		match := colorizedRemaining[colorizedPos:colorizedPos+len(searchText)]
+		match := colorizedRemaining[colorizedPos : colorizedPos+len(searchText)]
 		after := colorizedRemaining[colorizedPos+len(searchText):]
-		
+
 		// Add the text before the match
 		result += before
-		
+
 		// Extract the active color context from the accumulated result
 		activeColor := c.extractActiveColorFromBefore(result)
-		
+
 		// Create highlighted version that preserves the original color
 		var highlightedMatch string
 		if activeColor != "" {
@@ -1394,20 +1392,20 @@ func (c *Colorizer) highlightTextPreservingColors(colorizedText, searchText stri
 			// No active color, use default highlighting
 			highlightedMatch = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("#4A4A4A")).Render(match)
 		}
-		
+
 		// Add the highlighted match
 		result += highlightedMatch
-		
+
 		// If there was an active color, we need to restore it for subsequent text
 		if activeColor != "" && after != "" {
 			result += activeColor
 		}
-		
+
 		// Continue with the remaining text after this match
 		colorizedRemaining = after
 		cleanRemaining = cleanRemaining[cleanPos+len(searchText):]
 	}
-	
+
 	return result
 }
 
@@ -1418,20 +1416,20 @@ func (c *Colorizer) findJSONValueBounds(plainText string, pos int) (int, int) {
 	if valueStart == -1 {
 		return -1, -1
 	}
-	
+
 	// Find the closing quote of the value
 	valueEnd := strings.Index(plainText[pos:], `"`)
 	if valueEnd == -1 {
 		return -1, -1
 	}
 	valueEnd = pos + valueEnd + 1 // Include the closing quote
-	
+
 	// Verify this is actually a value (not a key)
 	beforeValue := strings.TrimSpace(plainText[:valueStart])
 	if !strings.HasSuffix(beforeValue, ":") {
 		return -1, -1
 	}
-	
+
 	return valueStart, valueEnd
 }
 
@@ -1440,10 +1438,10 @@ func (c *Colorizer) findColorizedPosition(colorizedText, cleanText string, clean
 	if cleanPos == 0 {
 		return 0
 	}
-	
+
 	colorizedPos := 0
 	cleanIndex := 0
-	
+
 	// Iterate through colorized text character by character
 	for colorizedPos < len(colorizedText) && cleanIndex < cleanPos {
 		// Check if we're at the start of an ANSI sequence
@@ -1463,7 +1461,7 @@ func (c *Colorizer) findColorizedPosition(colorizedText, cleanText string, clean
 			cleanIndex++
 		}
 	}
-	
+
 	return colorizedPos
 }
 
@@ -1474,21 +1472,21 @@ func (c *Colorizer) extractActiveColorFromBefore(beforeText string) string {
 	if lastEscPos == -1 {
 		return ""
 	}
-	
+
 	// Find the end of the escape sequence
 	escSeq := beforeText[lastEscPos:]
 	mPos := strings.Index(escSeq, "m")
 	if mPos == -1 {
 		return ""
 	}
-	
+
 	ansiCode := escSeq[:mPos+1]
-	
+
 	// Skip reset codes
 	if ansiCode == "\x1b[0m" || ansiCode == "\x1b[m" {
 		return ""
 	}
-	
+
 	return ansiCode
 }
 
@@ -1497,7 +1495,7 @@ func (c *Colorizer) createColorPreservingHighlight(text, activeColor string) str
 	// Extract color information to determine appropriate background
 	fgColor := c.mapAnsiToHexColor(activeColor)
 	bgColor := c.computeHighlightBackground(fgColor)
-	
+
 	// Create highlight with original foreground color, bold, and computed background
 	return activeColor + "\x1b[1m\x1b[48;5;" + c.hexToAnsi256(bgColor) + "m" + text + "\x1b[0m"
 }
@@ -1507,17 +1505,17 @@ func (c *Colorizer) hexToAnsi256(hexColor string) string {
 	// This is a simplified mapping - a full implementation would do proper color space conversion
 	// For now, we'll map common background colors to ANSI 256 codes
 	colorMap := map[string]string{
-		"#4A1F1F": "52",   // Dark red
-		"#4A4A1F": "58",   // Dark yellow
-		"#1F4A4A": "23",   // Dark cyan
-		"#2F4A3F": "22",   // Dark green
-		"#2F2F2F": "236",  // Dark gray
-		"#1F2F4A": "17",   // Dark blue
-		"#4A1F3F": "53",   // Dark pink
-		"#3F1F3F": "54",   // Dark plum
-		"#4A4A4A": "238",  // Medium gray (default)
+		"#4A1F1F": "52",  // Dark red
+		"#4A4A1F": "58",  // Dark yellow
+		"#1F4A4A": "23",  // Dark cyan
+		"#2F4A3F": "22",  // Dark green
+		"#2F2F2F": "236", // Dark gray
+		"#1F2F4A": "17",  // Dark blue
+		"#4A1F3F": "53",  // Dark pink
+		"#3F1F3F": "54",  // Dark plum
+		"#4A4A4A": "238", // Medium gray (default)
 	}
-	
+
 	if code, exists := colorMap[hexColor]; exists {
 		return code
 	}
@@ -1534,11 +1532,11 @@ func (c *Colorizer) mapAnsiToHexColor(ansiCode string) string {
 		"\x1b[38;5;227m": "#FFE66D", // Yellow
 		"\x1b[38;5;86m":  "#4ECDC4", // Cyan
 	}
-	
+
 	if color, exists := ansiMap[ansiCode]; exists {
 		return color
 	}
-	
+
 	return "#F0F0F0" // Default light gray
 }
 
@@ -1550,7 +1548,7 @@ func (c *Colorizer) applySearchHighlightToColorizedText(colorizedText, originalT
 		if len(matches) == 0 {
 			return colorizedText
 		}
-		
+
 		// Apply highlighting from right to left to preserve positions
 		result := colorizedText
 		for i := len(matches) - 1; i >= 0; i-- {
@@ -1572,10 +1570,10 @@ func (c *Colorizer) applySearchHighlightToColorizedText(colorizedText, originalT
 func (c *Colorizer) highlightTextInColorizedString(colorizedText, searchText string) string {
 	// This is more complex because we need to find the text while ignoring ANSI codes
 	// For now, we'll use a simple approach that works for most cases
-	
+
 	// Split the colorized text to find plain text portions
 	result := colorizedText
-	
+
 	// Find all occurrences of the search text in the original
 	for {
 		// Find the next occurrence of search text
@@ -1583,18 +1581,18 @@ func (c *Colorizer) highlightTextInColorizedString(colorizedText, searchText str
 		if pos == -1 {
 			break
 		}
-		
+
 		// Extract the matched text and apply highlighting
 		before := result[:pos]
-		match := result[pos:pos+len(searchText)]
+		match := result[pos : pos+len(searchText)]
 		after := result[pos+len(searchText):]
-		
+
 		// Determine the style to use based on surrounding context
 		highlightStyle := c.determineHighlightStyleFromContext(before, match, after)
 		highlightedMatch := highlightStyle.Render(match)
-		
+
 		result = before + highlightedMatch + after
-		
+
 		// Move past this match to avoid infinite loop
 		// We add len(highlightedMatch) instead of len(match) because the highlighted version is longer
 		if len(highlightedMatch) <= len(match) {
@@ -1603,7 +1601,7 @@ func (c *Colorizer) highlightTextInColorizedString(colorizedText, searchText str
 			break
 		}
 	}
-	
+
 	return result
 }
 
@@ -1611,7 +1609,7 @@ func (c *Colorizer) highlightTextInColorizedString(colorizedText, searchText str
 func (c *Colorizer) determineHighlightStyleFromContext(before, match, after string) lipgloss.Style {
 	// Try to extract the foreground color from the context before the match
 	// This is a simplified approach - look for ANSI color codes immediately before
-	
+
 	// Look for the last ANSI escape sequence in the 'before' text
 	lastEscPos := strings.LastIndex(before, "\x1b[")
 	if lastEscPos != -1 {
@@ -1626,7 +1624,7 @@ func (c *Colorizer) determineHighlightStyleFromContext(before, match, after stri
 			return lipgloss.NewStyle().Foreground(lipgloss.Color(color)).Background(lipgloss.Color(bgColor)).Bold(true)
 		}
 	}
-	
+
 	// Default highlighting if we can't determine context
 	return lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("#3F3F3F"))
 }
@@ -1668,20 +1666,16 @@ func (c *Colorizer) convertMarkersToFormatting(colorizedLine string) string {
 			break
 		}
 		end += start + len(":SPLASHBOLD>>>") // Adjust for absolute position and include the marker
-		
+
 		// Extract the text between markers
 		matchText := result[start+len("<<<SPLASHBOLD:") : end-len(":SPLASHBOLD>>>")]
-		
+
 		// Replace the marked text with bold version
 		boldText := c.theme.SearchHighlight.Render(matchText)
 		result = result[:start] + boldText + result[end:]
 	}
 	return result
 }
-
-
-
-
 
 // applyStyleWithMarkers applies a style while preserving search markers
 func (c *Colorizer) applyStyleWithMarkers(value string, style lipgloss.Style) string {
@@ -1693,10 +1687,10 @@ func (c *Colorizer) applyStyleWithMarkers(value string, style lipgloss.Style) st
 func (c *Colorizer) createHighlightStyle(originalStyle lipgloss.Style) lipgloss.Style {
 	// Get the foreground color from the original style
 	fgColor := c.extractForegroundColor(originalStyle)
-	
+
 	// Compute an appropriate background color
 	bgColor := c.computeHighlightBackground(fgColor)
-	
+
 	// Create highlight style with bold, original foreground, and computed background
 	return originalStyle.Bold(true).Background(lipgloss.Color(bgColor))
 }
@@ -1705,10 +1699,10 @@ func (c *Colorizer) createHighlightStyle(originalStyle lipgloss.Style) lipgloss.
 func (c *Colorizer) extractForegroundColor(style lipgloss.Style) string {
 	// This is a bit tricky since lipgloss doesn't expose style properties directly
 	// We'll use a heuristic approach by rendering a test string and checking common colors
-	
+
 	// Check if this matches any of our known theme colors
 	testRender := style.Render("test")
-	
+
 	// If the style has ANSI color codes, we can try to extract them
 	// For now, we'll use a mapping based on our theme colors
 	return c.mapStyleToColor(style, testRender)
@@ -1719,38 +1713,38 @@ func (c *Colorizer) mapStyleToColor(style lipgloss.Style, rendered string) strin
 	// Compare against known theme styles to determine color
 	// This is a simplified approach - in a more sophisticated version,
 	// we would parse ANSI codes from the rendered string
-	
+
 	testStyles := map[string]string{
-		c.theme.Error.Render("test"):      "#FF6B6B", // Red
-		c.theme.Warning.Render("test"):    "#FFE66D", // Yellow  
-		c.theme.Info.Render("test"):       "#4ECDC4", // Cyan
-		c.theme.Debug.Render("test"):      "#95E1D3", // Light green
-		c.theme.Timestamp.Render("test"):  "#A8A8A8", // Gray
-		c.theme.IP.Render("test"):         "#74B9FF", // Blue
-		c.theme.URL.Render("test"):        "#81ECEC", // Cyan
-		c.theme.Method.Render("test"):     "#FD79A8", // Pink
-		c.theme.JSONKey.Render("test"):    "#DDA0DD", // Plum
-		c.theme.JSONString.Render("test"): "#98FB98", // Pale green
-		c.theme.JSONNumber.Render("test"): "#87CEEB", // Sky blue
-		c.theme.JSONValue.Render("test"):  "#F0F0F0", // Light gray
-		c.theme.LogfmtKey.Render("test"):  "#DDA0DD", // Plum
+		c.theme.Error.Render("test"):       "#FF6B6B", // Red
+		c.theme.Warning.Render("test"):     "#FFE66D", // Yellow
+		c.theme.Info.Render("test"):        "#4ECDC4", // Cyan
+		c.theme.Debug.Render("test"):       "#95E1D3", // Light green
+		c.theme.Timestamp.Render("test"):   "#A8A8A8", // Gray
+		c.theme.IP.Render("test"):          "#74B9FF", // Blue
+		c.theme.URL.Render("test"):         "#81ECEC", // Cyan
+		c.theme.Method.Render("test"):      "#FD79A8", // Pink
+		c.theme.JSONKey.Render("test"):     "#DDA0DD", // Plum
+		c.theme.JSONString.Render("test"):  "#98FB98", // Pale green
+		c.theme.JSONNumber.Render("test"):  "#87CEEB", // Sky blue
+		c.theme.JSONValue.Render("test"):   "#F0F0F0", // Light gray
+		c.theme.LogfmtKey.Render("test"):   "#DDA0DD", // Plum
 		c.theme.LogfmtValue.Render("test"): "#F0F0F0", // Light gray
-		c.theme.Service.Render("test"):    "#87CEEB", // Sky blue
-		c.theme.Hostname.Render("test"):   "#FFB347", // Peach
-		c.theme.PID.Render("test"):        "#B19CD9", // Lavender
-		c.theme.Filename.Render("test"):   "#FFA07A", // Light salmon
-		c.theme.LineNum.Render("test"):    "#B19CD9", // Lavender
-		c.theme.StatusOK.Render("test"):   "#6BCF7F", // Green
-		c.theme.StatusWarn.Render("test"): "#FFD93D", // Yellow
+		c.theme.Service.Render("test"):     "#87CEEB", // Sky blue
+		c.theme.Hostname.Render("test"):    "#FFB347", // Peach
+		c.theme.PID.Render("test"):         "#B19CD9", // Lavender
+		c.theme.Filename.Render("test"):    "#FFA07A", // Light salmon
+		c.theme.LineNum.Render("test"):     "#B19CD9", // Lavender
+		c.theme.StatusOK.Render("test"):    "#6BCF7F", // Green
+		c.theme.StatusWarn.Render("test"):  "#FFD93D", // Yellow
 		c.theme.StatusError.Render("test"): "#FF6B6B", // Red
 	}
-	
+
 	for styleRender, color := range testStyles {
 		if styleRender == rendered {
 			return color
 		}
 	}
-	
+
 	// Default to a neutral color if we can't determine the foreground
 	return "#F0F0F0" // Light gray
 }
@@ -1760,7 +1754,7 @@ func (c *Colorizer) computeHighlightBackground(fgColor string) string {
 	// Define background colors that work well with different foreground colors
 	colorMap := map[string]string{
 		"#FF6B6B": "#4A1F1F", // Red text -> Dark red background
-		"#FFE66D": "#4A4A1F", // Yellow text -> Dark yellow background  
+		"#FFE66D": "#4A4A1F", // Yellow text -> Dark yellow background
 		"#4ECDC4": "#1F4A4A", // Cyan text -> Dark cyan background
 		"#95E1D3": "#2F4A3F", // Light green text -> Dark green background
 		"#A8A8A8": "#2F2F2F", // Gray text -> Dark gray background
@@ -1777,11 +1771,11 @@ func (c *Colorizer) computeHighlightBackground(fgColor string) string {
 		"#6BCF7F": "#1F3F2F", // Green text -> Dark green background
 		"#FFD93D": "#4A4A1F", // Yellow text -> Dark yellow background
 	}
-	
+
 	if bgColor, exists := colorMap[fgColor]; exists {
 		return bgColor
 	}
-	
+
 	// If we don't have a specific mapping, try to compute a darker version
 	return c.computeDarkerVersion(fgColor)
 }
@@ -1790,29 +1784,35 @@ func (c *Colorizer) computeHighlightBackground(fgColor string) string {
 func (c *Colorizer) computeDarkerVersion(hexColor string) string {
 	// Remove # if present
 	hex := strings.TrimPrefix(hexColor, "#")
-	
+
 	// Parse RGB components
 	if len(hex) != 6 {
 		return "#3F3F3F" // Default dark gray
 	}
-	
+
 	r, err1 := strconv.ParseInt(hex[0:2], 16, 64)
 	g, err2 := strconv.ParseInt(hex[2:4], 16, 64)
 	b, err3 := strconv.ParseInt(hex[4:6], 16, 64)
-	
+
 	if err1 != nil || err2 != nil || err3 != nil {
 		return "#3F3F3F" // Default dark gray
 	}
-	
+
 	// Make it much darker (divide by 4) for background
 	r = r / 4
-	g = g / 4  
+	g = g / 4
 	b = b / 4
-	
+
 	// Ensure minimum darkness
-	if r < 0x1F { r = 0x1F }
-	if g < 0x1F { g = 0x1F }
-	if b < 0x1F { b = 0x1F }
-	
+	if r < 0x1F {
+		r = 0x1F
+	}
+	if g < 0x1F {
+		g = 0x1F
+	}
+	if b < 0x1F {
+		b = 0x1F
+	}
+
 	return fmt.Sprintf("#%02X%02X%02X", r, g, b)
 }

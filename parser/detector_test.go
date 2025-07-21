@@ -169,10 +169,10 @@ func BenchmarkOriginalDetection(b *testing.B) {
 
 func TestDeterministicDetection(t *testing.T) {
 	parser := NewParser()
-	
+
 	// Test line that could potentially match multiple formats
 	line := `{"timestamp":"2025-01-19T10:30:00Z","level":"ERROR","message":"Test"}`
-	
+
 	// Run detection multiple times - should always return the same result
 	firstResult := parser.DetectFormat(line)
 	for i := 0; i < 20; i++ {
@@ -185,7 +185,7 @@ func TestDeterministicDetection(t *testing.T) {
 
 func TestSpecificityOrdering(t *testing.T) {
 	parser := NewParser()
-	
+
 	tests := []struct {
 		name     string
 		line     string
