@@ -10,10 +10,11 @@ import (
 	"syscall"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/joshi4/splash/colorizer"
-	"github.com/joshi4/splash/parser"
 	"github.com/muesli/termenv"
 	"github.com/spf13/cobra"
+
+	"github.com/joshi4/splash/colorizer"
+	"github.com/joshi4/splash/parser"
 )
 
 // Command flags
@@ -134,8 +135,11 @@ var rootCmd = &cobra.Command{
   docker logs mycontainer | splash
   kubectl logs pod-name | splash -s "ERROR"
   cat access.log | splash -r "[45]\\d\\d"`,
-	Run: func(cmd *cobra.Command, args []string) {
-		runSplash()
+	Run: func(_ *cobra.Command, _ []string) {
+		if err := runSplash(); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
+		}
 	},
 }
 
@@ -149,7 +153,7 @@ func Execute() {
 }
 
 // runSplash is the main function that reads from stdin and writes to stdout
-func runSplash() {
+func runSplash() error {
 	// Handle color profile and theme detection
 	if noColor {
 		lipgloss.SetColorProfile(termenv.Ascii)
@@ -159,7 +163,7 @@ func runSplash() {
 		lipgloss.SetColorProfile(termenv.TrueColor)
 	}
 
-	// Create a context that will be cancelled when we receive a signal
+	// Create a context that will be canceled when we receive a signal
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -179,8 +183,7 @@ func runSplash() {
 
 	// Set search patterns if provided
 	if searchPattern != "" && regexPattern != "" {
-		fmt.Fprintf(os.Stderr, "Cannot use both --search and --regexp flags simultaneously\n")
-		os.Exit(1)
+		return fmt.Errorf("cannot use both --search and --regexp flags simultaneously")
 	}
 
 	if searchPattern != "" {
@@ -188,8 +191,7 @@ func runSplash() {
 	} else if regexPattern != "" {
 		err := logColorizer.SetSearchRegex(regexPattern)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Invalid regex pattern: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("invalid regex pattern: %v", err)
 		}
 	}
 
@@ -221,12 +223,12 @@ func runSplash() {
 		}
 	}()
 
-	// Wait for either the context to be cancelled or reading to complete
+	// Wait for either the context to be canceled or reading to complete
 	select {
 	case <-ctx.Done():
-		return
+		return nil
 	case <-done:
-		return
+		return nil
 	}
 }
 

@@ -7,8 +7,9 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/joshi4/splash/parser"
 	"github.com/muesli/termenv"
+
+	"github.com/joshi4/splash/parser"
 )
 
 func TestHerokuSearchHighlighting(t *testing.T) {
@@ -1005,11 +1006,9 @@ func TestJSONSearchValueHighlighting(t *testing.T) {
 				if !hasAnsiCodes {
 					t.Logf("Note: No ANSI codes found in result (expected in test environment): %q", result)
 				}
-			} else {
+			} else if !strings.Contains(tt.line, tt.searchString) && strings.Contains(result, tt.searchString) {
 				// Search term should not be in the result if not found in original
-				if !strings.Contains(tt.line, tt.searchString) && strings.Contains(result, tt.searchString) {
-					t.Errorf("Search term %q should not appear in result when not in original, got: %q", tt.searchString, result)
-				}
+				t.Errorf("Search term %q should not appear in result when not in original, got: %q", tt.searchString, result)
 			}
 
 			// Verify JSON structure is always preserved

@@ -109,11 +109,9 @@ func TestSearchFunctionality(t *testing.T) {
 					if !regex.MatchString(result) {
 						t.Errorf("Expected highlighted result to match regex %q, got: %q", tt.pattern, result)
 					}
-				} else {
+				} else if !strings.Contains(result, tt.pattern) {
 					// For string patterns, check that the exact string is present
-					if !strings.Contains(result, tt.pattern) {
-						t.Errorf("Expected highlighted result to contain pattern %q, got: %q", tt.pattern, result)
-					}
+					t.Errorf("Expected highlighted result to contain pattern %q, got: %q", tt.pattern, result)
 				}
 			} else {
 				// For non-matches, result should still be valid but pattern shouldn't be specially highlighted

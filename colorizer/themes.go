@@ -190,14 +190,14 @@ func NewDarkTheme() *ColorTheme {
 		Method:    lipgloss.NewStyle().Foreground(lipgloss.Color("#FD79A8")).Bold(true),      // Light pink
 
 		// JSON/structured data
-		JSONKey:    lipgloss.NewStyle().Foreground(lipgloss.Color("#DDA0DD")), // Light plum
-		JSONValue:  lipgloss.NewStyle().Foreground(lipgloss.Color("#F0F0F0")), // Light gray
-		JSONString: lipgloss.NewStyle().Foreground(lipgloss.Color("#98FB98")), // Light green
-		JSONNumber: lipgloss.NewStyle().Foreground(lipgloss.Color("#87CEEB")), // Light blue
+		JSONKey:    lipgloss.NewStyle().Foreground(lipgloss.Color("#DDA0DD")),        // Light plum
+		JSONValue:  lipgloss.NewStyle().Foreground(lipgloss.Color(defaultLightGray)), // Light gray
+		JSONString: lipgloss.NewStyle().Foreground(lipgloss.Color("#98FB98")),        // Light green
+		JSONNumber: lipgloss.NewStyle().Foreground(lipgloss.Color("#87CEEB")),        // Light blue
 
 		// Logfmt
-		LogfmtKey:   lipgloss.NewStyle().Foreground(lipgloss.Color("#DDA0DD")), // Light plum
-		LogfmtValue: lipgloss.NewStyle().Foreground(lipgloss.Color("#F0F0F0")), // Light gray
+		LogfmtKey:   lipgloss.NewStyle().Foreground(lipgloss.Color("#DDA0DD")),        // Light plum
+		LogfmtValue: lipgloss.NewStyle().Foreground(lipgloss.Color(defaultLightGray)), // Light gray
 
 		// System/process info
 		Hostname: lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB347")),            // Light orange

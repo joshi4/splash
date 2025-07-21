@@ -1,6 +1,6 @@
 run:
   timeout: 5m
-  go: "1.21"
+  go: "1.24"
 
 linters:
   enable:
@@ -25,7 +25,7 @@ linters:
     - gocritic
     - gosec
     - dupl
-    - exportloopref
+    - copyloopvar
     - forcetypeassert
     - nilerr
     - nilnil
@@ -37,10 +37,7 @@ linters:
     - whitespace
 
   disable:
-    - deadcode  # deprecated
-    - varcheck  # deprecated
-    - structcheck  # deprecated
-    - ifshort   # deprecated
+    # Remove deprecated linters from disable list since they're already inactive
 
 linters-settings:
   gofmt:
@@ -99,9 +96,10 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   new: false
+  uniq-by-line: true
 
 output:
-  format: colored-line-number
+  formats:
+    - format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
-  uniq-by-line: true
