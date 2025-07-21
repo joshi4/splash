@@ -226,8 +226,12 @@ func runSplash() error {
 	// Wait for either the context to be canceled or reading to complete
 	select {
 	case <-ctx.Done():
+		// Check for upgrades before exiting due to signal
+		CheckForUpgradesOnExit()
 		return nil
 	case <-done:
+		// Check for upgrades before normal exit
+		CheckForUpgradesOnExit()
 		return nil
 	}
 }
