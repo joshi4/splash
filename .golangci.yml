@@ -36,7 +36,7 @@ linters:
     - wastedassign
     - whitespace
 
-  disable:
+  disable: []
     # Remove deprecated linters from disable list since they're already inactive
 
 linters-settings:
