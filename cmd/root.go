@@ -132,7 +132,11 @@ func createColorizerWithTheme() *colorizer.Colorizer {
 var rootCmd = &cobra.Command{
 	Use:   "splash",
 	Short: "Add color to your logs",
-	Long:  createSplashHeader() + "\nSplash streams logs from stdin to stdout, auto-detecting well-known log formats\nand adding colors to make them easier to parse and scan.\n\nSupported formats: JSON, Logfmt, Syslog, Apache, Nginx, Rails, Docker,\nKubernetes, Heroku, Go standard logs, and more.\n\nExamples:\n  tail -f /var/log/app.log | splash\n  docker logs mycontainer | splash\n  kubectl logs pod-name | splash -s \"ERROR\"\n  cat access.log | splash -r \"[45]\\d\\d\"",
+	Long:  createSplashHeader() + "\nSplash transforms streams of boring plaintext into colorful and easy to read logs.\n\nSupported formats: JSON, Logfmt, Syslog, Apache, Nginx, Rails, Docker,\nKubernetes, Heroku, Go standard logs, and more.",
+	Example: `  tail -f /var/log/app.log | splash
+  docker logs mycontainer | splash
+  kubectl logs pod-name | splash -s "ERROR"
+  cat access.log | splash -r "[45]\\d\\d"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		runSplash()
 	},
@@ -231,8 +235,8 @@ func runSplash() {
 
 func init() {
 	// Search flags
-	rootCmd.Flags().StringVarP(&searchPattern, "search", "s", "", "highlight matching text in a log line")
-	rootCmd.Flags().StringVarP(&regexPattern, "regexp", "r", "", "highlight text that matches a regexp per log line")
+	rootCmd.Flags().StringVarP(&searchPattern, "search", "s", "", "search for all instances of a string")
+	rootCmd.Flags().StringVarP(&regexPattern, "regexp", "r", "", "search for text that matches a regexp")
 
 	// Theme flags
 	rootCmd.Flags().BoolVar(&lightTheme, "light", false, "force light theme colors (for light terminal backgrounds)")
