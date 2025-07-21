@@ -1,6 +1,3 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -101,7 +98,7 @@ func createSplashHeader() string {
 
 	subtitle := lipgloss.NewStyle().
 		Bold(true).
-		Render("  Add color to your logs. No config | Just pipe")
+		Render("  Add color to your logs")
 
 	return header + "\n" + subtitle + "\n"
 }
