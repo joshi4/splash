@@ -4,6 +4,7 @@ go 1.24.5
 
 require (
 	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/getsavvyinc/upgrade-cli v0.4.0
 	github.com/muesli/termenv v0.16.0
 	github.com/spf13/cobra v1.9.1
 )
@@ -14,6 +15,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.8.0 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
+	github.com/hashicorp/go-version v1.7.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
