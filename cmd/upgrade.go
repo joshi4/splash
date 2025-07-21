@@ -27,7 +27,7 @@ var upgradeCmd = &cobra.Command{
 This command will check for the latest release on GitHub and upgrade
 your splash installation if a newer version is available.`,
 	Example: `  splash upgrade`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, _ []string) {
 		if err := runUpgrade(); err != nil {
 			fmt.Fprintf(os.Stderr, "Upgrade failed: %v\n", err)
 			os.Exit(1)

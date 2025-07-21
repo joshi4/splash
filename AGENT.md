@@ -49,6 +49,7 @@ Splash takes logs from stdin and auto detects well known log formats and adds co
 - Naming: camelCase for private, PascalCase for public, descriptive names
 - Package naming: lowercase, single word when possible
 - Comments: exported functions/types must have doc comments starting with the name
+- Commits: Do not include Amp thread links in commit messages.
 
 ## Development Principles: Generalization & Modularity
 
@@ -103,7 +104,7 @@ Splash takes logs from stdin and auto detects well known log formats and adds co
 
 ### Test Case Guidelines
 - **Specific Test Cases**: When user provides exact input/output examples, create dedicated test functions
-- **Edge Cases**: Include tests for boundary conditions and error scenarios  
+- **Edge Cases**: Include tests for boundary conditions and error scenarios
 - **Multiple Formats**: If the bug affects multiple log formats, test all relevant formats
 - **Search Functionality**: When fixing search-related bugs, test both string and regex search patterns
 
