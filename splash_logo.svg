@@ -1,51 +1,105 @@
-<svg width="600" height="200" viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+<svg width="800" height="200" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <style>
       .letter { font-family: 'Courier New', monospace; font-weight: bold; font-size: 72px; }
-      .tagline { font-family: 'Courier New', monospace; font-size: 18px; fill: #ffffff; }
+      .tagline { font-family: 'Courier New', monospace; font-size: 16px; fill: #ffffff; }
     </style>
   </defs>
   
   <!-- Dark background -->
-  <rect width="600" height="200" fill="#2d3748"/>
+  <rect width="800" height="200" fill="#2d3748"/>
   
-  <!-- S - Coral/Pink -->
-  <text x="40" y="120" class="letter" fill="#ff6b6b">S</text>
+  <!-- Left side: Same colorful bubbles as right side -->
+  <g id="input-logs">
+    <!-- Vibrant scattered bubbles (same as right side) -->
+    <circle cx="80" cy="65" r="8" fill="#ff6b6b" opacity="0.8"/>
+    <circle cx="100" cy="45" r="6" fill="#ffd93d" opacity="0.9"/>
+    <circle cx="120" cy="75" r="10" fill="#4ecdc4" opacity="0.7"/>
+    <circle cx="140" cy="55" r="7" fill="#51cf66" opacity="0.8"/>
+    <circle cx="160" cy="85" r="5" fill="#74c0fc" opacity="0.9"/>
+    <circle cx="180" cy="40" r="9" fill="#b197fc" opacity="0.6"/>
+    <circle cx="200" cy="70" r="6" fill="#ff9f43" opacity="0.8"/>
+    
+    <circle cx="90" cy="105" r="6" fill="#ffd93d" opacity="0.6"/>
+    <circle cx="110" cy="125" r="4" fill="#4ecdc4" opacity="0.9"/>
+    <circle cx="130" cy="95" r="8" fill="#51cf66" opacity="0.7"/>
+    <circle cx="150" cy="115" r="5" fill="#74c0fc" opacity="0.8"/>
+    <circle cx="170" cy="135" r="7" fill="#b197fc" opacity="0.8"/>
+    <circle cx="190" cy="105" r="6" fill="#ff6b6b" opacity="0.6"/>
+    
+    <circle cx="85" cy="145" r="7" fill="#51cf66" opacity="0.7"/>
+    <circle cx="105" cy="155" r="6" fill="#74c0fc" opacity="0.8"/>
+    <circle cx="125" cy="135" r="5" fill="#b197fc" opacity="0.9"/>
+    <circle cx="145" cy="155" r="8" fill="#ff9f43" opacity="0.6"/>
+    <circle cx="165" cy="145" r="6" fill="#ff6b6b" opacity="0.8"/>
+    <circle cx="185" cy="165" r="7" fill="#ffd93d" opacity="0.7"/>
+    
+    <!-- Some floating smaller bubbles -->
+    <circle cx="75" cy="80" r="3" fill="#74c0fc" opacity="0.5"/>
+    <circle cx="115" cy="60" r="2" fill="#ff6b6b" opacity="0.6"/>
+    <circle cx="155" cy="35" r="3" fill="#51cf66" opacity="0.4"/>
+    <circle cx="195" cy="165" r="2" fill="#ffd93d" opacity="0.5"/>
+  </g>
   
-  <!-- P - Yellow -->
-  <text x="90" y="120" class="letter" fill="#ffd93d">P</text>
+  <!-- Center: SPLASH text -->
+  <g id="splash-text" transform="translate(220, 0)">
+    <!-- S - Coral/Pink -->
+    <text x="0" y="110" class="letter" fill="#ff6b6b">S</text>
+    
+    <!-- P - Yellow -->
+    <text x="50" y="110" class="letter" fill="#ffd93d">P</text>
+    
+    <!-- L - Teal -->
+    <text x="100" y="110" class="letter" fill="#4ecdc4">L</text>
+    
+    <!-- A - Green -->
+    <text x="150" y="110" class="letter" fill="#51cf66">A</text>
+    
+    <!-- S - Blue -->
+    <text x="200" y="110" class="letter" fill="#74c0fc">S</text>
+    
+    <!-- H - Purple -->
+    <text x="250" y="110" class="letter" fill="#b197fc">H</text>
+  </g>
   
-  <!-- L - Teal -->
-  <text x="140" y="120" class="letter" fill="#4ecdc4">L</text>
+  <!-- Tagline centered below -->
+  <text x="370" y="140" class="tagline" text-anchor="middle">Add color to your logs</text>
   
-  <!-- A - Green -->
-  <text x="190" y="120" class="letter" fill="#51cf66">A</text>
-  
-  <!-- S - Blue -->
-  <text x="240" y="120" class="letter" fill="#74c0fc">S</text>
-  
-  <!-- H - Purple -->
-  <text x="290" y="120" class="letter" fill="#b197fc">H</text>
-  
-  <!-- Tagline -->
-  <text x="40" y="160" class="tagline">Add color to your logs</text>
-  
-  <!-- Decorative splash dots -->
-  <circle cx="380" cy="50" r="8" fill="#ff6b6b" opacity="0.7"/>
-  <circle cx="420" cy="35" r="6" fill="#ffd93d" opacity="0.8"/>
-  <circle cx="450" cy="60" r="5" fill="#4ecdc4" opacity="0.6"/>
-  <circle cx="480" cy="40" r="7" fill="#51cf66" opacity="0.7"/>
-  <circle cx="510" cy="70" r="4" fill="#74c0fc" opacity="0.8"/>
-  <circle cx="540" cy="45" r="6" fill="#b197fc" opacity="0.6"/>
-  
-  <circle cx="400" cy="120" r="3" fill="#ff6b6b" opacity="0.5"/>
-  <circle cx="430" cy="135" r="4" fill="#ffd93d" opacity="0.6"/>
-  <circle cx="460" cy="110" r="5" fill="#4ecdc4" opacity="0.7"/>
-  <circle cx="490" cy="125" r="3" fill="#51cf66" opacity="0.8"/>
-  <circle cx="520" cy="115" r="4" fill="#74c0fc" opacity="0.6"/>
-  
-  <!-- Additional small splashes -->
-  <circle cx="350" cy="80" r="2" fill="#ff6b6b" opacity="0.4"/>
-  <circle cx="370" cy="90" r="3" fill="#ffd93d" opacity="0.5"/>
-  <circle cx="550" cy="90" r="2" fill="#b197fc" opacity="0.4"/>
+  <!-- Right side: Colorful, free-flowing bubbles -->
+  <g id="colorful-output">
+    <!-- Vibrant scattered bubbles -->
+    <circle cx="580" cy="65" r="8" fill="#ff6b6b" opacity="0.8"/>
+    <circle cx="600" cy="45" r="6" fill="#ffd93d" opacity="0.9"/>
+    <circle cx="620" cy="75" r="10" fill="#4ecdc4" opacity="0.7"/>
+    <circle cx="640" cy="55" r="7" fill="#51cf66" opacity="0.8"/>
+    <circle cx="660" cy="85" r="5" fill="#74c0fc" opacity="0.9"/>
+    <circle cx="680" cy="40" r="9" fill="#b197fc" opacity="0.6"/>
+    <circle cx="700" cy="70" r="6" fill="#ff9f43" opacity="0.8"/>
+    <circle cx="720" cy="50" r="8" fill="#ff6b6b" opacity="0.7"/>
+    
+    <circle cx="590" cy="105" r="6" fill="#ffd93d" opacity="0.6"/>
+    <circle cx="610" cy="125" r="4" fill="#4ecdc4" opacity="0.9"/>
+    <circle cx="630" cy="95" r="8" fill="#51cf66" opacity="0.7"/>
+    <circle cx="650" cy="115" r="5" fill="#74c0fc" opacity="0.8"/>
+    <circle cx="670" cy="135" r="7" fill="#b197fc" opacity="0.8"/>
+    <circle cx="690" cy="105" r="6" fill="#ff6b6b" opacity="0.6"/>
+    <circle cx="710" cy="125" r="9" fill="#ffd93d" opacity="0.9"/>
+    <circle cx="730" cy="110" r="4" fill="#4ecdc4" opacity="0.7"/>
+    
+    <circle cx="585" cy="145" r="7" fill="#51cf66" opacity="0.7"/>
+    <circle cx="605" cy="155" r="6" fill="#74c0fc" opacity="0.8"/>
+    <circle cx="625" cy="135" r="5" fill="#b197fc" opacity="0.9"/>
+    <circle cx="645" cy="155" r="8" fill="#ff9f43" opacity="0.6"/>
+    <circle cx="665" cy="145" r="6" fill="#ff6b6b" opacity="0.8"/>
+    <circle cx="685" cy="165" r="7" fill="#ffd93d" opacity="0.7"/>
+    <circle cx="705" cy="150" r="5" fill="#4ecdc4" opacity="0.8"/>
+    <circle cx="725" cy="140" r="6" fill="#51cf66" opacity="0.6"/>
+    
+    <!-- Some floating smaller bubbles for movement -->
+    <circle cx="575" cy="80" r="3" fill="#74c0fc" opacity="0.5"/>
+    <circle cx="615" cy="60" r="2" fill="#ff6b6b" opacity="0.6"/>
+    <circle cx="655" cy="35" r="3" fill="#51cf66" opacity="0.4"/>
+    <circle cx="695" cy="165" r="2" fill="#ffd93d" opacity="0.5"/>
+    <circle cx="715" cy="30" r="3" fill="#b197fc" opacity="0.6"/>
+  </g>
 </svg>
