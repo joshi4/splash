@@ -129,7 +129,7 @@ func createColorizerWithTheme() *colorizer.Colorizer {
 var rootCmd = &cobra.Command{
 	Use:   "splash",
 	Short: "Add color to your logs",
-	Long:  createSplashHeader() + "\nSplash transforms streams of boring plaintext into colorful and easy to read logs.\n\nSupported formats: JSON, Logfmt, Syslog, Apache, Nginx, Rails, Docker,\nKubernetes, Heroku, Go standard logs, and more.",
+	Long:  createSplashHeader() + "\nSplash transforms streams of boring plaintext into colorful and easy to read logs.\nUse Splash to easily scan and debug issues from your logs.\n\nSupported formats: JSON, Logfmt, Syslog, Apache, Nginx, Rails, Docker,\nKubernetes, Heroku, Go standard logs, and more.",
 	Example: `  tail -f /var/log/app.log | splash
   docker logs mycontainer | splash
   kubectl logs pod-name | splash -s "ERROR"
