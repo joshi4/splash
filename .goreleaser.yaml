@@ -81,6 +81,7 @@ brews:
   - repository:
       owner: joshi4
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: "https://github.com/joshi4/splash"
     description: "Add color to your logs"
     license: "MIT"
