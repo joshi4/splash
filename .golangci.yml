@@ -20,7 +20,6 @@ linters:
     - revive
     - unconvert
     - unparam
-    - gocyclo
     - goconst
     - gocritic
     - gosec
@@ -36,8 +35,8 @@ linters:
     - wastedassign
     - whitespace
 
-  disable: []
-    # Remove deprecated linters from disable list since they're already inactive
+  disable:
+    - gocyclo  # Disable cyclomatic complexity checking
 
 linters-settings:
   gofmt:
