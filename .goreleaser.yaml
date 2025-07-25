@@ -80,7 +80,7 @@ changelog:
 brews:
   - repository:
       owner: joshi4
-      name: homebrew-tap
+      name: homebrew-splash
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: "https://github.com/joshi4/splash"
     description: "Add color to your logs"
