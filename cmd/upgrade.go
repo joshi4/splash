@@ -111,7 +111,7 @@ func runUpgradeWithOptions(verbose, interactive bool) error {
 			fmt.Println("Upgrading splash to the latest version...")
 		}
 	}
-	
+
 	if err := upgrader.Upgrade(ctx, version); err != nil {
 		if verbose || interactive {
 			if interactive {
