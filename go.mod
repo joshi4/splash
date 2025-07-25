@@ -4,7 +4,7 @@ go 1.24.5
 
 require (
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
-	github.com/getsavvyinc/upgrade-cli v0.7.0
+	github.com/getsavvyinc/upgrade-cli v0.7.2
 	github.com/muesli/termenv v0.16.0
 	github.com/spf13/cobra v1.9.1
 )
