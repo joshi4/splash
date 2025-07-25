@@ -92,7 +92,7 @@ func runUpgradeWithOptions(verbose, interactive bool) error {
 		if err != nil {
 			// If we can't read input, fallback to showing the manual command
 			fmt.Fprintf(os.Stderr, "Run 'splash upgrade' to update.\n")
-			return nil
+			return err
 		}
 
 		response = strings.ToLower(strings.TrimSpace(response))
