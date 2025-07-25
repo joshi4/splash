@@ -137,6 +137,9 @@ func runUpgradeWithOptions(verbose, interactive bool) error {
 // CheckForUpgradesOnExit checks for available upgrades and prompts the user
 // This is called when splash is about to exit
 func CheckForUpgradesOnExit() {
+	if os.Getenv("CI") == "1" || os.Getenv("CI") == "true" {
+		return // Skip upgrade checks in CI environments
+	}
 	// Reuse the upgrade logic but with silent error handling and interactive mode
 	err := runUpgradeWithOptions(false, true) // verbose=false, interactive=true
 	if err != nil {
