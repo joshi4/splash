@@ -170,6 +170,8 @@ func (c *Colorizer) ColorizeLog(line string, format parser.LogFormat) string {
 		result = c.colorizeKubernetes(line)
 	case parser.HerokuFormat:
 		result = c.colorizeHeroku(line)
+	case parser.GoTestFormat:
+		result = c.colorizeGoTest(line)
 	default:
 		result = c.colorizeGenericLog(line)
 	}
@@ -721,6 +723,158 @@ func (c *Colorizer) colorizeGenericLog(line string) string {
 	return result.String()
 }
 
+func (c *Colorizer) colorizeGoTest(line string) string {
+	// Handle Go test output patterns with enhanced highlighting
+
+	// Package skip lines: ? github.com/path [no test files]
+	if strings.HasPrefix(line, "? ") && strings.Contains(line, "[no test files]") {
+		re := regexp.MustCompile(`^(\? )([^[]+)(\[no test files\])`)
+		matches := re.FindStringSubmatch(line)
+		if len(matches) == 4 {
+			result := strings.Builder{}
+			result.WriteString(c.applySearchHighlighting(matches[1], c.theme.StatusWarn.Bold(true)))
+			result.WriteString(c.applySearchHighlighting(strings.TrimSpace(matches[2]), c.theme.Service.Bold(true)))
+			result.WriteString(c.applySearchHighlighting(matches[3], c.theme.StatusWarn))
+			return result.String()
+		}
+	}
+
+	// Test execution lines: === RUN TestName or === RUN TestName/subtest
+	if strings.HasPrefix(line, "=== RUN ") {
+		re := regexp.MustCompile(`^(=== RUN )([ \t]+)?(.*)`)
+		matches := re.FindStringSubmatch(line)
+		if len(matches) >= 3 {
+			result := strings.Builder{}
+			// Make RUN keyword very prominent
+			result.WriteString(c.applySearchHighlighting("=== RUN", c.theme.Info.Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "6", Dark: "14"})))
+			if len(matches) > 3 && matches[2] != "" {
+				result.WriteString(matches[2]) // preserve whitespace
+			} else {
+				result.WriteString(" ")
+			}
+			// Make test name very prominent
+			testName := matches[len(matches)-1]
+			result.WriteString(c.applySearchHighlighting(testName, c.theme.Service.Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "5", Dark: "13"})))
+			return result.String()
+		}
+	}
+
+	// Test naming lines: === NAME TestName
+	if strings.HasPrefix(line, "=== NAME ") {
+		if result := c.formatTestMarkerLine(line, "=== NAME"); result != "" {
+			return result
+		}
+	}
+
+	// Test continuation lines: === CONT TestName
+	if strings.HasPrefix(line, "=== CONT ") {
+		if result := c.formatTestMarkerLine(line, "=== CONT"); result != "" {
+			return result
+		}
+	}
+
+	// Test result lines: --- PASS: TestName (duration) or --- PASS: TestName
+	if strings.HasPrefix(line, "--- ") {
+		re := regexp.MustCompile(`^(--- )(PASS|FAIL|SKIP)(: )([ \t]*)?([^(]+?)(\s*\([^)]*\))?(\s*)$`)
+		matches := re.FindStringSubmatch(line)
+		if len(matches) >= 6 {
+			result := strings.Builder{}
+			result.WriteString(c.applySearchHighlighting(matches[1], lipgloss.NewStyle()))
+
+			// Color result based on status with bold emphasis
+			status := matches[2]
+			switch status {
+			case "PASS":
+				result.WriteString(c.applySearchHighlighting(status, c.theme.StatusOK.Bold(true)))
+			case "FAIL":
+				result.WriteString(c.applySearchHighlighting(status, c.theme.StatusError.Bold(true)))
+			case "SKIP":
+				result.WriteString(c.applySearchHighlighting(status, c.theme.StatusWarn.Bold(true)))
+			}
+
+			result.WriteString(c.applySearchHighlighting(matches[3], lipgloss.NewStyle()))
+			if len(matches) > 4 && matches[4] != "" {
+				result.WriteString(matches[4]) // preserve whitespace
+			}
+			// Make test name prominent
+			testName := strings.TrimSpace(matches[5])
+			result.WriteString(c.applySearchHighlighting(testName, c.theme.Service.Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "5", Dark: "13"})))
+
+			// Duration in subtle color
+			if len(matches) > 6 && matches[6] != "" {
+				result.WriteString(c.applySearchHighlighting(matches[6], c.theme.Timestamp))
+			}
+			if len(matches) > 7 && matches[7] != "" {
+				result.WriteString(matches[7]) // trailing whitespace
+			}
+			return result.String()
+		}
+	}
+
+	// Package result lines: PASS or FAIL (standalone) - make them very prominent
+	if line == "PASS" {
+		return c.applySearchHighlighting(line, c.theme.StatusOK.Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "2", Dark: "10"}))
+	}
+	if line == "FAIL" {
+		return c.applySearchHighlighting(line, c.theme.StatusError.Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "1", Dark: "9"}))
+	}
+
+	// Package completion: ok github.com/path duration
+	if strings.HasPrefix(line, "ok ") {
+		if result := c.formatPackageResultLine(line, "ok ", c.theme.StatusOK.Bold(true)); result != "" {
+			return result
+		}
+	}
+
+	// Package failure: FAIL github.com/path duration
+	if strings.HasPrefix(line, "FAIL ") {
+		if result := c.formatPackageResultLine(line, "FAIL ", c.theme.StatusError.Bold(true)); result != "" {
+			return result
+		}
+	}
+
+	// Handle mixed log output (timestamps, GIN logs, etc.) within Go test context
+	// Try to detect timestamps and log levels for embedded log lines
+	if c.containsTimestamp(line) || c.containsLogLevel(line) {
+		return c.colorizeMessageWithHighlighting(line)
+	}
+
+	// Default fallback for any unmatched Go test line
+	return c.applySearchHighlighting(line, lipgloss.NewStyle())
+}
+
+// Helper functions for GoTest colorizer
+func (c *Colorizer) containsTimestamp(line string) bool {
+	// Check for various timestamp patterns
+	timestampPatterns := []string{
+		`\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}`,     // Go standard: 2025/07/30 08:23:42
+		`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}`,     // ISO format: 2025-07-30T08:23:42
+		`\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]`, // Rails format: [2025-07-30 08:23:42]
+		`\d{2}/\w{3}/\d{4}:\d{2}:\d{2}:\d{2}`,     // Apache format: 30/Jul/2025:08:23:42
+	}
+
+	for _, pattern := range timestampPatterns {
+		matched, _ := regexp.MatchString(pattern, line)
+		if matched {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Colorizer) containsLogLevel(line string) bool {
+	// Check for common log levels in the line
+	logLevels := []string{"DEBUG", "INFO", "WARN", "WARNING", "ERROR", "FATAL", "CRITICAL", "TRACE"}
+	upperLine := strings.ToUpper(line)
+
+	for _, level := range logLevels {
+		if strings.Contains(upperLine, level) {
+			return true
+		}
+	}
+	return false
+}
+
 // stripAnsiCodes removes ANSI escape sequences from text
 func (c *Colorizer) stripAnsiCodes(text string) string {
 	// ANSI escape sequence pattern: \033[...m or \x1b[...m
@@ -737,4 +891,41 @@ func (c *Colorizer) matchesSearch(line string) bool {
 		return strings.Contains(line, c.searchString)
 	}
 	return false
+}
+
+// formatTestMarkerLine formats Go test marker lines like "=== NAME TestName" and "=== CONT TestName"
+func (c *Colorizer) formatTestMarkerLine(line, marker string) string {
+	re := regexp.MustCompile(`^(` + regexp.QuoteMeta(marker) + ` )([ \t]+)?(.*)`)
+	matches := re.FindStringSubmatch(line)
+	if len(matches) >= 3 {
+		result := strings.Builder{}
+		result.WriteString(c.applySearchHighlighting(marker, c.theme.Info.Bold(true)))
+		if len(matches) > 3 && matches[2] != "" {
+			result.WriteString(matches[2])
+		} else {
+			result.WriteString(" ")
+		}
+		testName := matches[len(matches)-1]
+		result.WriteString(c.applySearchHighlighting(testName, c.theme.Service.Bold(true)))
+		return result.String()
+	}
+	return ""
+}
+
+// formatPackageResultLine formats Go package result lines like "ok github.com/path duration" and "FAIL github.com/path duration"
+func (c *Colorizer) formatPackageResultLine(line, prefix string, style lipgloss.Style) string {
+	re := regexp.MustCompile(`^(` + regexp.QuoteMeta(prefix) + `)([ \t]+)?([^ ]+)([ \t]+)(.*)`)
+	matches := re.FindStringSubmatch(line)
+	if len(matches) == 6 {
+		result := strings.Builder{}
+		result.WriteString(c.applySearchHighlighting(matches[1], style))
+		if matches[2] != "" {
+			result.WriteString(matches[2])
+		}
+		result.WriteString(c.applySearchHighlighting(matches[3], c.theme.Service.Bold(true)))
+		result.WriteString(matches[4])
+		result.WriteString(c.applySearchHighlighting(matches[5], c.theme.Timestamp))
+		return result.String()
+	}
+	return ""
 }

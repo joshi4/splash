@@ -39,6 +39,7 @@ func NewParser() *Parser {
 		detectors: []FormatDetector{
 			&JSONDetector{},
 			&LogfmtDetector{},
+			&GoTestDetector{},     // High priority for specific go test patterns
 			&KubernetesDetector{}, // Must be before DockerDetector
 			&HerokuDetector{},
 			&NginxDetector{}, // Must be before ApacheCommonDetector
@@ -472,4 +473,36 @@ func (d *HerokuDetector) Specificity() int {
 
 func (d *HerokuDetector) PatternLength() int {
 	return len(herokuPattern)
+}
+
+type GoTestDetector struct{}
+
+const goTestPattern = `^(=== RUN|--- PASS:|--- FAIL:|--- SKIP:|=== NAME|=== CONT|\? .* \[no test files\]|PASS$|FAIL$|ok .* [\d\.]+[a-z]*$|FAIL .*)`
+
+var goTestRegex = regexp.MustCompile(goTestPattern)
+
+func (d *GoTestDetector) Detect(ctx context.Context, line string) bool {
+	done := make(chan bool, 1)
+	go func() {
+		done <- goTestRegex.MatchString(line)
+	}()
+
+	select {
+	case result := <-done:
+		return result
+	case <-ctx.Done():
+		return false
+	}
+}
+
+func (d *GoTestDetector) Format() LogFormat {
+	return GoTestFormat
+}
+
+func (d *GoTestDetector) Specificity() int {
+	return 70 // Higher than standard regex-based formats but lower than structured formats
+}
+
+func (d *GoTestDetector) PatternLength() int {
+	return len(goTestPattern)
 }

@@ -1,0 +1,95 @@
+? github.com/org/org/functionality/cmd/foogen [no test files]
+? github.com/org/org/functionality/cmd/thing [no test files]
+=== RUN TestReconcileCreatesServiceAccounts
+--- PASS: TestName(0.00s)
+=== RUN TestSportReconcilerCreatesNamespace
+--- PASS: TestName(0.00s)
+PASS
+ok github.com/org/org/functionality/pkg/operand/tokens/tests 0.296s
+? github.com/org/org/functionality/pkg/operand/input [no test files]
+=== RUN TestinputReconciler_UpdateAnnotations
+--- PASS: TestName(0.00s)
+=== RUN TestinputReconciler_Deletion
+--- PASS: TestName(0.00s)
+=== RUN TestinputReconciler_thinginput
+--- PASS: TestName(0.00s)
+=== RUN TestinputReconciler_TenantSecurityIsolation
+--- PASS: TestName(0.00s)
+=== RUN TestinputReconciler_MissingService
+--- PASS: TestName(0.00s)
+PASS
+ok github.com/org/org/functionality/pkg/operand/input/tests 0.754s
+=== RUN TestRecordAPIOperation
+--- PASS: TestName(0.00s)
+=== RUN TestRecordError
+--- PASS: TestName(0.00s)
+=== RUN TestSetWorkQueueDepth
+--- PASS: TestName(0.00s)
+PASS
+ok github.com/org/org/functionality/pkg/operand/metrics 0.506s
+? github.com/org/org/functionality/pkg/operand/tenants [no test files]
+=== RUN TestReconcile
+--- PASS: TestName(0.00s)
+=== RUN TestReconcileSkipsNotReadyNodes
+--- PASS: TestName(0.00s)
+=== RUN TestReconcile_TenantNotActive
+--- PASS: TestName(0.00s)
+=== RUN TestNodeReassignmentNeeded
+--- PASS: TestName(0.00s)
+PASS
+ok github.com/org/org/functionality/pkg/operand/tenants/tests 1.458s
+=== RUN TestGetClusterName
+=== RUN TestGetClusterName/with_cluster_name
+=== RUN TestGetClusterName/very_long_cluster_name
+=== RUN TestGetClusterName/very_long_account_id
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+=== RUN TestTenantsReconciler_BasicCreation
+--- PASS: TestName(0.00s)
+=== RUN TestthingNodePlacementIntegration
+controller_test.go:234: Skipping integration test - run manually with -test.run=TestthingNodePlacementIntegration
+--- SKIP: TestName(0.00s)
+=== RUN TestthinginputConfiguration
+--- PASS: TestName(0.00s)
+=== RUN TestthinginputHostname
+=== RUN TestthinginputHostname/standard_case
+=== RUN TestthinginputHostname/with_long_account_ID
+=== RUN TestthinginputHostname/with_long_cluster_ID
+=== RUN TestthinginputHostname/with_subdomain_in_input_domain
+=== RUN TestthinginputHostname/with_empty_cluster_ID_(should_use_default)
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+=== RUN TestDeleteUndesiredClustersGracePeriod
+--- PASS: TestName(0.00s)
+=== RUN TestthingExtraSANsConfiguration
+=== RUN TestthingExtraSANsConfiguration/standard_case
+=== RUN TestthingExtraSANsConfiguration/with_different_domain
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+PASS
+ok github.com/org/org/functionality/pkg/operand/things 1.186s
+? github.com/org/org/functionality/pkg/functionality_server [no test files]
+? github.com/org/org/functionality/pkg/functionality_server/auth [no test files]
+? github.com/org/org/functionality/pkg/functionality_server/frontend_server [no test files]
+? github.com/org/org/functionality/pkg/functionality_server/frontend_server/docs [no test files]
+2025/07/30 08:23:42 Setting up test database: test-frontend-server
+2025/07/30 08:23:42 Successfully created test DB in 443.957167ms
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+- using env: export GIN_MODE=release
+- using code: gin.SetMode(gin.ReleaseMode)
+[GIN] 2025/07/30 - 08:23:43 | 200 | 560.416µs | 127.0.0.1 | GET "/v0/tokens"
+--- PASS: TestName(0.48s)
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+--- PASS: TestName(0.00s)
+--- FAIL: TestName(0.00s)

@@ -21,6 +21,7 @@ const (
 	DockerFormat
 	KubernetesFormat
 	HerokuFormat
+	GoTestFormat
 )
 
 // String returns the string representation of the log format
@@ -46,6 +47,8 @@ func (f LogFormat) String() string {
 		return "Kubernetes"
 	case HerokuFormat:
 		return "Heroku"
+	case GoTestFormat:
+		return "Go Test"
 	default:
 		return "Unknown"
 	}
@@ -61,6 +64,7 @@ var (
 	legacyDockerRegex       = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z`)
 	legacyKubernetesRegex   = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z \d+ \S+:\d+\]`)
 	legacyHerokuRegex       = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2} app\[\S+\]:`)
+	legacyGoTestRegex       = regexp.MustCompile(`^(=== RUN|--- PASS:|--- FAIL:|--- SKIP:|=== NAME|=== CONT|\? .* \[no test files\]|PASS$|FAIL$|ok .* [\d\.]+[a-z]*$|FAIL .*)`)
 )
 
 // DetectFormat analyzes a log line and returns the detected format
@@ -79,6 +83,11 @@ func DetectFormat(line string) LogFormat {
 	// Check for logfmt format
 	if isLogfmtFormat(line) {
 		return LogfmtFormat
+	}
+
+	// Check for GoTest format first (highly specific patterns)
+	if legacyGoTestRegex.MatchString(line) {
+		return GoTestFormat
 	}
 
 	// Check regex patterns in order of specificity
