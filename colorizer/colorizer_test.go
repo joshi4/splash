@@ -1053,3 +1053,313 @@ func TestJSONSearchUsesHighVisibilityColors(t *testing.T) {
 	t.Logf("JSON search highlight: %q", jsonStyled)
 	t.Logf("Regular search highlight: %q", regularStyled)
 }
+
+func TestGoTestColorizer(t *testing.T) {
+	// Test Go test output colorization
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)
+	lipgloss.SetColorProfile(termenv.TrueColor)
+
+	colorizer := NewColorizer()
+
+	tests := []struct {
+		name     string
+		line     string
+		expected []string // Substrings that should be present in output
+	}{
+		{
+			name:     "RUN directive",
+			line:     "=== RUN   TestExample",
+			expected: []string{"=== RUN", "TestExample"},
+		},
+		{
+			name:     "RUN with subtest",
+			line:     "=== RUN   TestExample/subtest_1",
+			expected: []string{"=== RUN", "TestExample/subtest_1"},
+		},
+		{
+			name:     "PASS result",
+			line:     "--- PASS: TestExample (0.01s)",
+			expected: []string{"PASS", "TestExample", "(0.01s)"},
+		},
+		{
+			name:     "FAIL result",
+			line:     "--- FAIL: TestExample (0.01s)",
+			expected: []string{"FAIL", "TestExample", "(0.01s)"},
+		},
+		{
+			name:     "SKIP result",
+			line:     "--- SKIP: TestExample (0.01s)",
+			expected: []string{"SKIP", "TestExample", "(0.01s)"},
+		},
+		{
+			name:     "NAME directive",
+			line:     "=== NAME  TestExample",
+			expected: []string{"=== NAME", "TestExample"},
+		},
+		{
+			name:     "CONT directive",
+			line:     "=== CONT  TestExample",
+			expected: []string{"=== CONT", "TestExample"},
+		},
+		{
+			name:     "Package skip",
+			line:     "? 	github.com/example/project	[no test files]",
+			expected: []string{"?", "github.com/example/project", "[no test files]"},
+		},
+		{
+			name:     "Package success",
+			line:     "ok  	github.com/example/myproject	0.123s",
+			expected: []string{"ok", "github.com/example/myproject", "0.123s"},
+		},
+		{
+			name:     "Package failure",
+			line:     "FAIL	github.com/example/badproject	0.456s",
+			expected: []string{"FAIL", "github.com/example/badproject", "0.456s"},
+		},
+		{
+			name:     "Standalone PASS",
+			line:     "PASS",
+			expected: []string{"PASS"},
+		},
+		{
+			name:     "Standalone FAIL",
+			line:     "FAIL",
+			expected: []string{"FAIL"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := colorizer.ColorizeLog(tt.line, parser.GoTestFormat)
+
+			// Verify all expected substrings are present
+			for _, expected := range tt.expected {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected result to contain %q, got: %q", expected, result)
+				}
+			}
+
+			// Verify the result is not empty and contains some content
+			if strings.TrimSpace(result) == "" {
+				t.Errorf("Expected non-empty colorized result for line: %q", tt.line)
+			}
+		})
+	}
+}
+
+func TestGoTestWithSearchHighlighting(t *testing.T) {
+	// Test Go test colorization with search highlighting
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)
+	lipgloss.SetColorProfile(termenv.TrueColor)
+
+	colorizer := NewColorizer()
+	colorizer.SetSearchString("TestExample")
+
+	tests := []struct {
+		name string
+		line string
+	}{
+		{
+			name: "RUN with search",
+			line: "=== RUN   TestExample",
+		},
+		{
+			name: "PASS with search",
+			line: "--- PASS: TestExample (0.01s)",
+		},
+		{
+			name: "FAIL with search",
+			line: "--- FAIL: TestExample (0.01s)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := colorizer.ColorizeLog(tt.line, parser.GoTestFormat)
+
+			// Verify the search term is still present in the colorized output
+			if !strings.Contains(result, "TestExample") {
+				t.Errorf("Expected search term 'TestExample' to be present in result: %q", result)
+			}
+
+			// Verify the result is not empty
+			if strings.TrimSpace(result) == "" {
+				t.Errorf("Expected non-empty colorized result for line: %q", tt.line)
+			}
+		})
+	}
+}
+
+func TestGoTestColorizing(t *testing.T) {
+	// This test verifies that Go test format detection and colorizing work correctly
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)
+	lipgloss.SetColorProfile(termenv.TrueColor)
+
+	colorizer := NewColorizer()
+
+	tests := []struct {
+		name           string
+		line           string
+		format         parser.LogFormat
+		expectedColors bool
+		description    string
+	}{
+		{
+			name:           "Test RUN line",
+			line:           "=== RUN TestExample",
+			format:         parser.GoTestFormat,
+			expectedColors: true,
+			description:    "=== RUN should be prominently colored",
+		},
+		{
+			name:           "Test PASS line",
+			line:           "--- PASS: TestExample (0.00s)",
+			format:         parser.GoTestFormat,
+			expectedColors: true,
+			description:    "--- PASS should be colored with success color",
+		},
+		{
+			name:           "Test FAIL line",
+			line:           "--- FAIL: TestExample (0.01s)",
+			format:         parser.GoTestFormat,
+			expectedColors: true,
+			description:    "--- FAIL should be colored with error color",
+		},
+		{
+			name:           "Test SKIP line",
+			line:           "--- SKIP: TestExample (0.00s)",
+			format:         parser.GoTestFormat,
+			expectedColors: true,
+			description:    "--- SKIP should be colored with warning color",
+		},
+		{
+			name:           "Package ok line",
+			line:           "ok   github.com/example/pkg 0.123s",
+			format:         parser.GoTestFormat,
+			expectedColors: true,
+			description:    "ok should be colored with success color",
+		},
+		{
+			name:           "Package FAIL line",
+			line:           "FAIL github.com/example/pkg 0.123s",
+			format:         parser.GoTestFormat,
+			expectedColors: true,
+			description:    "FAIL should be colored with error color",
+		},
+		{
+			name:           "Package skip line",
+			line:           "? github.com/example/pkg [no test files]",
+			format:         parser.GoTestFormat,
+			expectedColors: true,
+			description:    "Package skip should be colored with warning color",
+		},
+		{
+			name:           "Standalone PASS",
+			line:           "PASS",
+			format:         parser.GoTestFormat,
+			expectedColors: true,
+			description:    "Standalone PASS should be prominently colored",
+		},
+		{
+			name:           "Standalone FAIL",
+			line:           "FAIL",
+			format:         parser.GoTestFormat,
+			expectedColors: true,
+			description:    "Standalone FAIL should be prominently colored",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := colorizer.ColorizeLog(tt.line, tt.format)
+
+			if tt.expectedColors {
+				// Verify the result contains ANSI codes (styling applied)
+				if !strings.Contains(result, "\x1b[") {
+					t.Errorf("Expected ANSI color codes in result for %s, but none found. Input: %q, Output: %q", tt.description, tt.line, result)
+				}
+
+				// Verify the original content is preserved
+				if !strings.Contains(result, strings.TrimSpace(tt.line)) {
+					// For lines that might have extra whitespace handling, check key components
+					if strings.HasPrefix(tt.line, "=== RUN") && !strings.Contains(result, "=== RUN") {
+						t.Errorf("Expected RUN keyword to be preserved in result")
+					}
+					if strings.HasPrefix(tt.line, "--- PASS") && !strings.Contains(result, "PASS") {
+						t.Errorf("Expected PASS keyword to be preserved in result")
+					}
+					if strings.HasPrefix(tt.line, "--- FAIL") && !strings.Contains(result, "FAIL") {
+						t.Errorf("Expected FAIL keyword to be preserved in result")
+					}
+				}
+
+				// The result should be longer due to ANSI codes
+				if len(result) <= len(tt.line) {
+					t.Errorf("Expected colorized result to be longer than original line due to ANSI codes. Input: %q (%d chars), Output: %q (%d chars)", tt.line, len(tt.line), result, len(result))
+				}
+			}
+		})
+	}
+}
+
+func TestGoTestFormatDetection(t *testing.T) {
+	// Test that Go test lines are properly detected as GoTestFormat
+	tests := []struct {
+		name           string
+		line           string
+		expectedFormat parser.LogFormat
+	}{
+		{
+			name:           "RUN line",
+			line:           "=== RUN TestExample",
+			expectedFormat: parser.GoTestFormat,
+		},
+		{
+			name:           "PASS line",
+			line:           "--- PASS: TestExample (0.00s)",
+			expectedFormat: parser.GoTestFormat,
+		},
+		{
+			name:           "FAIL line",
+			line:           "--- FAIL: TestExample (0.01s)",
+			expectedFormat: parser.GoTestFormat,
+		},
+		{
+			name:           "Package ok",
+			line:           "ok   github.com/example/pkg 0.123s",
+			expectedFormat: parser.GoTestFormat,
+		},
+		{
+			name:           "Package FAIL",
+			line:           "FAIL github.com/example/pkg 0.123s",
+			expectedFormat: parser.GoTestFormat,
+		},
+		{
+			name:           "Package skip",
+			line:           "? github.com/example/pkg [no test files]",
+			expectedFormat: parser.GoTestFormat,
+		},
+		{
+			name:           "Standalone PASS",
+			line:           "PASS",
+			expectedFormat: parser.GoTestFormat,
+		},
+		{
+			name:           "Standalone FAIL",
+			line:           "FAIL",
+			expectedFormat: parser.GoTestFormat,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			detectedFormat := parser.DetectFormat(tt.line)
+			if detectedFormat != tt.expectedFormat {
+				t.Errorf("Expected format %v for line %q, but got %v", tt.expectedFormat, tt.line, detectedFormat)
+			}
+		})
+	}
+}

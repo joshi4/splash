@@ -50,6 +50,8 @@ Splash takes logs from stdin and auto detects well known log formats and adds co
 - Package naming: lowercase, single word when possible
 - Comments: exported functions/types must have doc comments starting with the name
 - Commits: Do not include Amp thread links in commit messages.
+- Run Style checks at the end of your development cycle to ensure code quality.
+
 
 ## Development Principles: Generalization & Modularity
 
