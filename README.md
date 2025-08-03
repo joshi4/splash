@@ -59,7 +59,7 @@ brew install splash
 go install github.com/joshi4/splash@latest
 ```
 
-## 🎯 Getting Started
+## Get Started
 
 The easiest way to use Splash is to pipe any log output through it:
 
@@ -110,7 +110,7 @@ Flags:
 
 **Note:** You cannot use both `-s` and `-r` flags simultaneously.
 
-## 📋 Supported Log Formats
+## Supported Log Formats
 
 Splash automatically detects and colorizes these log formats:
 
@@ -146,7 +146,7 @@ Sometimes logs are written to stderr instead of stdout. Try redirecting stderr t
 your_command 2>&1 | splash
 ```
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature-name`
