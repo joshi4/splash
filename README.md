@@ -39,7 +39,7 @@ Splash adds beautiful, adaptive colors to make logs easier to read.
   </tr>
   <tr>
     <td align="center"><b> Apache format logs </b><br/></td>
-    <td align="center"><b> Find strings that match any regex with splash -r "08:3\d" </b><br/></td>
+    <td align="center"><b> splash -r "08:3\d" to highlight all timestamps that match the regex pattern </b><br/></td>
   </tr>
 
 </table>
