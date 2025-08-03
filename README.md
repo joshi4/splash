@@ -23,10 +23,16 @@ Splash adds beautiful, adaptive colors to make logs easier to read.
     <td align="center"><b>go test -v ./... </b><br/></td>
     <td align="center"><b>go test -v ./... | splash </b><br/></td>
   </tr>
-</table>
 
-### Go Test
-![Plain go test output](screenshots/go_test.jpeg)
+  <tr>
+    <td><img src="./screenshots/syslog.jpeg" alt="plain syslog from testdata" width="1280"/></td>
+    <td><img src="./screenshots/syslog_splash.jpeg" alt="splash handles syslog" width="1280"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b> syslog </b><br/></td>
+    <td align="center"><b> scan for strings easily with splash --search </b><br/></td>
+  </tr>
+</table>
 
 ## Installation
 
