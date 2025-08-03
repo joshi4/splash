@@ -16,8 +16,8 @@ Splash adds beautiful, adaptive colors to make logs easier to read.
 
 <table>
   <tr>
-    <td><img src="./screenshots/go_test.jpeg" alt="output of go test for splash repo" width="1280"/></td>
-    <td><img src="./screenshots/go_test_splash.jpeg" alt="output of go test | splash" width="1280"/></td>
+    <td><img src="./screenshots/go_test.jpeg" alt="output of go test for splash repo" width="1280" height="2480"/></td>
+    <td><img src="./screenshots/go_test_splash.jpeg" alt="output of go test | splash" width="1280" height="2480"/></td>
   </tr>
   <tr>
     <td align="center"><b>go test -v ./... </b><br/></td>
@@ -25,13 +25,23 @@ Splash adds beautiful, adaptive colors to make logs easier to read.
   </tr>
 
   <tr>
-    <td><img src="./screenshots/syslog.jpeg" alt="plain syslog from testdata" width="1280"/></td>
-    <td><img src="./screenshots/syslog_splash.jpeg" alt="splash handles syslog" width="1280"/></td>
+    <td><img src="./screenshots/syslog.jpeg" alt="plain syslog from testdata" width="1280" height="2480"/></td>
+    <td><img src="./screenshots/syslog_splash.jpeg" alt="use -s/--search flag to search with splash" width="1280" height="2480"/></td>
   </tr>
   <tr>
-    <td align="center"><b> syslog </b><br/></td>
-    <td align="center"><b> scan for strings easily with splash --search </b><br/></td>
+    <td align="center"><b> Syslog Logs </b><br/></td>
+    <td align="center"><b> Scan for strings easily with splash --search </b><br/></td>
   </tr>
+
+  <tr>
+    <td><img src="./screenshots/apache.jpeg" alt="plain apache format logs from testdata" width="1280" height="2480"/></td>
+    <td><img src="./screenshots/apache_splash.jpeg" alt="use -r/--regex to search for any string that match your pattern" width="1280" height="2480"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b> Apache format logs </b><br/></td>
+    <td align="center"><b> Find strings that match any regex with splash -r "08:3\d" </b><br/></td>
+  </tr>
+
 </table>
 
 ## Installation
@@ -69,23 +79,24 @@ echo '{"timestamp":"2025-01-19T10:30:00Z","level":"ERROR","message":"Connection 
 { echo '192.168.1.1 - - [19/Jan/2025:10:30:00 +0000] "GET /api HTTP/1.1" 200 1234'; echo '192.168.1.2 - - [19/Jan/2025:10:30:01 +0000] "POST /api HTTP/1.1" 404 567'; } | splash -r "[45]\d\d"
 ```
 
-# Test with sample data from different log formats
-printf '{"ts":"2025-01-19T10:30:00Z","level":"INFO","msg":"User login","user":"alice"}\n{"ts":"2025-01-19T10:30:05Z","level":"ERROR","msg":"Auth failed","user":"bob"}\n' | splash -s "ERROR"
-
-# Generate and monitor continuous output
+### Generate and monitor continuous output
+```bash
 while true; do echo "$(date -Iseconds) INFO Server is healthy"; sleep 2; done | splash
+```
 
-# Create a mix of log formats to test detection
+### Create a mix of log formats to test detection
+```bash
 {
   echo 'Jan 19 10:30:00 localhost myapp[1234]: INFO Application started'
   echo '{"timestamp":"2025-01-19T10:30:01Z","level":"WARN","message":"High memory usage"}'
   echo '127.0.0.1 - - [19/Jan/2025:10:30:02 +0000] "GET /health HTTP/1.1" 200 15'
 } | splash
-
-# Use with curl to monitor API responses (requires jq)
-curl -s httpbin.org/json | jq -c . | splash
 ```
 
+### Use with curl to monitor API responses (requires jq)
+```bash
+curl -s httpbin.org/json | jq -c . | splash
+```
 ## 🔧 Command Line Options
 
 ```bash
@@ -123,6 +134,16 @@ Splash automatically detects and colorizes these log formats:
 git clone https://github.com/joshi4/splash.git
 cd splash
 go build
+```
+
+## FAQ
+
+**I'm using a supported log format but it's not being detected. What should I do?**
+
+Sometimes logs are written to stderr instead of stdout. Try redirecting stderr to stdout:
+
+```bash
+your_command 2>&1 | splash
 ```
 
 ## 🤝 Contributing
