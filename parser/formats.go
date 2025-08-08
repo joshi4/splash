@@ -16,6 +16,7 @@ const (
 	ApacheCommonFormat
 	NginxFormat
 	SyslogFormat
+    RsyslogFormat
 	GoStandardFormat
 	RailsFormat
 	DockerFormat
@@ -37,6 +38,8 @@ func (f LogFormat) String() string {
 		return "Nginx"
 	case SyslogFormat:
 		return "Syslog"
+    case RsyslogFormat:
+        return "Rsyslog"
 	case GoStandardFormat:
 		return "Go Standard"
 	case RailsFormat:

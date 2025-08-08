@@ -42,6 +42,7 @@ func NewParser() *Parser {
 			&GoTestDetector{},     // High priority for specific go test patterns
 			&KubernetesDetector{}, // Must be before DockerDetector
 			&HerokuDetector{},
+            &RsyslogDetector{},    // Before generic Syslog to be more specific
 			&NginxDetector{}, // Must be before ApacheCommonDetector
 			&ApacheCommonDetector{},
 			&DockerDetector{},
@@ -55,7 +56,8 @@ func NewParser() *Parser {
 
 // DetectFormat detects the log format for a given line with optimization
 func (p *Parser) DetectFormat(line string) LogFormat {
-	line = strings.TrimSpace(line)
+    rawLine := line
+    line = strings.TrimSpace(line)
 	if line == "" {
 		return UnknownFormat
 	}
@@ -74,12 +76,12 @@ func (p *Parser) DetectFormat(line string) LogFormat {
 		}
 	}
 
-	// Previous detector failed or doesn't exist, try all detectors concurrently
-	return p.detectAllFormats(line)
+    // Previous detector failed or doesn't exist, try all detectors concurrently
+    return p.detectAllFormats(line, rawLine)
 }
 
 // detectAllFormats runs all detectors concurrently and returns the most specific match
-func (p *Parser) detectAllFormats(line string) LogFormat {
+func (p *Parser) detectAllFormats(line string, rawLine string) LogFormat {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
@@ -111,7 +113,17 @@ func (p *Parser) detectAllFormats(line string) LogFormat {
 		}
 	}
 
-	if len(matches) == 0 {
+    	if len(matches) == 0 {
+		// Handle continuation lines: stick with previous rsyslog/syslog format
+		p.mu.RLock()
+		prev := p.previousFormat
+		p.mu.RUnlock()
+		if prev == RsyslogFormat {
+			return RsyslogFormat
+		}
+		if prev == SyslogFormat {
+			return SyslogFormat
+		}
 		return UnknownFormat
 	}
 
@@ -313,6 +325,41 @@ func (d *SyslogDetector) Specificity() int {
 
 func (d *SyslogDetector) PatternLength() int {
 	return len(syslogPattern)
+}
+
+// RsyslogDetector matches classic rsyslog-style headers explicitly containing syslogd/rsyslogd
+type RsyslogDetector struct{}
+
+// Example: "Aug  8 00:15:23 Host syslogd[347]: ASL Sender Statistics"
+// Also matches rsyslogd
+const rsyslogPattern = `^\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\S+\s+(?:rsyslogd|syslogd)\[\d+\]:`
+
+var rsyslogRegex = regexp.MustCompile(rsyslogPattern)
+
+func (d *RsyslogDetector) Detect(ctx context.Context, line string) bool {
+    done := make(chan bool, 1)
+    go func() {
+        done <- rsyslogRegex.MatchString(line)
+    }()
+
+    select {
+    case result := <-done:
+        return result
+    case <-ctx.Done():
+        return false
+    }
+}
+
+func (d *RsyslogDetector) Format() LogFormat {
+    return RsyslogFormat
+}
+
+func (d *RsyslogDetector) Specificity() int {
+    return 55 // Slightly higher than generic regex-based to prefer rsyslog over syslog when applicable
+}
+
+func (d *RsyslogDetector) PatternLength() int {
+    return len(rsyslogPattern)
 }
 
 type GoStandardDetector struct{}
