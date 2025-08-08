@@ -10,23 +10,23 @@ import (
 
 // TestDetectionWithTestData verifies format detection using real test log files
 func TestDetectionWithTestData(t *testing.T) {
-			testCases := []struct {
-			filename       string
-			expectedFormat LogFormat
-			description    string
-		}{
-			{"json.log", JSONFormat, "JSON structured logs"},
-			{"logfmt.log", LogfmtFormat, "Logfmt key=value logs"},
-			{"apache_common.log", ApacheCommonFormat, "Apache Common Log format"},
-			{"nginx.log", NginxFormat, "Nginx Combined Log format"},
-			{"syslog.log", SyslogFormat, "System log format"},
+	testCases := []struct {
+		filename       string
+		expectedFormat LogFormat
+		description    string
+	}{
+		{"json.log", JSONFormat, "JSON structured logs"},
+		{"logfmt.log", LogfmtFormat, "Logfmt key=value logs"},
+		{"apache_common.log", ApacheCommonFormat, "Apache Common Log format"},
+		{"nginx.log", NginxFormat, "Nginx Combined Log format"},
+		{"syslog.log", SyslogFormat, "System log format"},
 		{"rsyslog.log", RsyslogFormat, "Rsyslog multi-line entries"},
-			{"go_standard.log", GoStandardFormat, "Go standard log format"},
-			{"rails.log", RailsFormat, "Rails application logs"},
-			{"docker.log", DockerFormat, "Docker container logs"},
-			{"kubernetes.log", KubernetesFormat, "Kubernetes pod logs"},
-			{"heroku.log", HerokuFormat, "Heroku dyno logs"},
-		}
+		{"go_standard.log", GoStandardFormat, "Go standard log format"},
+		{"rails.log", RailsFormat, "Rails application logs"},
+		{"docker.log", DockerFormat, "Docker container logs"},
+		{"kubernetes.log", KubernetesFormat, "Kubernetes pod logs"},
+		{"heroku.log", HerokuFormat, "Heroku dyno logs"},
+	}
 
 	parser := NewParser()
 
