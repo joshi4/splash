@@ -56,12 +56,6 @@ func NewParser() *Parser {
 
 // DetectFormat detects the log format for a given line with optimization
 func (p *Parser) DetectFormat(line string) LogFormat {
-	rawLine := line
-	line = strings.TrimSpace(line)
-	if line == "" {
-		return UnknownFormat
-	}
-
 	// Try previous detector first if we have one
 	p.mu.RLock()
 	previousDetector := p.previousDetector
@@ -77,12 +71,12 @@ func (p *Parser) DetectFormat(line string) LogFormat {
 	}
 
 	// Previous detector failed or doesn't exist, try all detectors concurrently
-	return p.detectAllFormats(line, rawLine)
+	return p.detectAllFormats(line)
 }
 
 // detectAllFormats runs all detectors concurrently and returns the most specific match
-func (p *Parser) detectAllFormats(line string, rawLine string) LogFormat {
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+func (p *Parser) detectAllFormats(line string) LogFormat {
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
 
 	resultChan := make(chan DetectionResult, len(p.detectors))
@@ -102,14 +96,15 @@ func (p *Parser) detectAllFormats(line string, rawLine string) LogFormat {
 
 	// Collect all results and find the most specific match
 	var matches []DetectionResult
-	for i := 0; i < len(p.detectors); i++ {
+LOOP:
+	for range len(p.detectors) {
 		select {
 		case result := <-resultChan:
 			if result.Detected {
 				matches = append(matches, result)
 			}
 		case <-ctx.Done():
-			break
+			break LOOP
 		}
 	}
 
