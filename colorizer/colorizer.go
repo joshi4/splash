@@ -160,6 +160,8 @@ func (c *Colorizer) ColorizeLog(line string, format parser.LogFormat) string {
 		result = c.colorizeNginx(line)
 	case parser.SyslogFormat:
 		result = c.colorizeSyslog(line)
+	case parser.RsyslogFormat:
+		result = c.colorizeRsyslog(line)
 	case parser.GoStandardFormat:
 		result = c.colorizeGoStandard(line)
 	case parser.RailsFormat:
@@ -503,6 +505,41 @@ func (c *Colorizer) colorizeSyslog(line string) string {
 	result.WriteString(c.colorizeMessageWithHighlighting(message))
 
 	return result.String()
+}
+
+// colorizeRsyslog adds colors to rsyslog-style lines and continuation lines
+func (c *Colorizer) colorizeRsyslog(line string) string {
+    // Try to parse header like: "Aug  8 00:15:23 Host syslogd[347]: Message"
+    re := regexp.MustCompile(`^(\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+(\S+)\s+((?:rsyslogd|syslogd))\[(\d+)\]:\s*(.*)$`)
+    matches := re.FindStringSubmatch(line)
+
+    if len(matches) == 6 {
+        timestamp := matches[1]
+        hostname := matches[2]
+        proc := matches[3]
+        pid := matches[4]
+        message := matches[5]
+
+        result := strings.Builder{}
+        result.WriteString(c.applySearchHighlighting(timestamp, c.theme.Timestamp))
+        result.WriteString(" ")
+        result.WriteString(c.applySearchHighlighting(hostname, c.theme.Hostname))
+        result.WriteString(" ")
+        result.WriteString(c.applySearchHighlighting(proc, c.theme.Service))
+        result.WriteString(c.theme.Bracket.Render("["))
+        result.WriteString(c.applySearchHighlighting(pid, c.theme.PID))
+        result.WriteString(c.theme.Bracket.Render("]: "))
+        result.WriteString(c.colorizeMessageWithHighlighting(message))
+        return result.String()
+    }
+
+    // Continuation or indented lines: render as plain message with slight indent styling
+    trimmed := strings.TrimLeft(line, " \t")
+    if len(trimmed) != len(line) {
+        return c.applySearchHighlighting(trimmed, c.theme.JSONValue)
+    }
+    // Fallback to syslog generic coloring
+    return c.colorizeSyslog(line)
 }
 
 func (c *Colorizer) colorizeGoStandard(line string) string {

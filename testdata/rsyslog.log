@@ -1,0 +1,10 @@
+Aug  8 00:15:23 Shantanus-MacBook-Pro syslogd[347]: ASL Sender Statistics
+Aug  8 00:37:15 Shantanus-MacBook-Pro syslogd[347]: ASL Sender Statistics
+Aug  8 00:37:15 Shantanus-MacBook-Pro syslogd[347]: Configuration Notice:
+        ASL Module "com.apple.cdscheduler" claims selected messages.
+        Those messages may not appear in standard system log files or in the ASL database.
+Aug  8 00:37:15 Shantanus-MacBook-Pro syslogd[347]: Configuration Notice:
+        ASL Module "com.apple.install" claims selected messages.
+        Those messages may not appear in standard system log files or in the ASL database.
+Aug  8 00:37:15 Shantanus-MacBook-Pro syslogd[347]: Configuration Notice:
+        ASL Module "com.apple.authd" sharing output destination "/var/log/asl" with ASL Module "com.apple.asl".
