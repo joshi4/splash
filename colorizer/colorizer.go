@@ -176,6 +176,8 @@ func (c *Colorizer) ColorizeLog(line string, format parser.LogFormat) string {
 		result = c.colorizeGoTest(line)
 	case parser.JavaExceptionFormat:
 		result = c.colorizeJavaException(line)
+	case parser.PythonExceptionFormat:
+		result = c.colorizePythonException(line)
 	default:
 		result = c.colorizeGenericLog(line)
 	}
@@ -1030,6 +1032,53 @@ func (c *Colorizer) colorizeJavaException(line string) string {
 
 	// Handle other stack trace related lines ("... X more", etc.)
 	if strings.Contains(line, "more") || strings.Contains(line, "...") {
+		return c.applySearchHighlighting(line, c.theme.JSONValue)
+	}
+
+	// Fallback for any unmatched lines
+	return c.applySearchHighlighting(line, c.theme.JSONValue)
+}
+
+// colorizePythonException colorizes Python tracebacks with prominent file/line highlighting
+func (c *Colorizer) colorizePythonException(line string) string {
+	// Handle traceback header lines (Traceback (most recent call last):)
+	if strings.HasPrefix(line, "Traceback (most recent call last):") {
+		return c.applySearchHighlighting(line, c.theme.StatusError.Bold(true))
+	}
+
+	// Handle File lines (  File "example_trace.py", line 21, in <module>)
+	fileLineRegex := regexp.MustCompile(`^(\s*)(File\s+")([^"]+)(",\s+line\s+)(\d+)(,\s+in\s+)(.*)`)
+	matches := fileLineRegex.FindStringSubmatch(line)
+	if len(matches) == 8 {
+		result := strings.Builder{}
+		result.WriteString(matches[1])                                                           // leading whitespace
+		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Bracket))              // "File "
+		// File name with prominent highlighting - purple background for Python files
+		fileStyle := c.theme.StatusOK.Bold(true).Background(lipgloss.Color("#9C27B0")).Foreground(lipgloss.Color("#FFFFFF"))
+		result.WriteString(c.applySearchHighlighting(matches[3], fileStyle))                    // filename
+		result.WriteString(c.applySearchHighlighting(matches[4], c.theme.Bracket))              // ", line "
+		// Line number with prominent highlighting - orange background  
+		lineStyle := c.theme.StatusWarn.Bold(true).Background(lipgloss.Color("#FF6600")).Foreground(lipgloss.Color("#FFFFFF"))
+		result.WriteString(c.applySearchHighlighting(matches[5], lineStyle))                    // line number
+		result.WriteString(c.applySearchHighlighting(matches[6], c.theme.Bracket))              // ", in "
+		result.WriteString(c.applySearchHighlighting(matches[7], c.theme.Service))              // function name
+		return result.String()
+	}
+
+	// Handle exception name lines (ZeroDivisionError: division by zero)
+	exceptionRegex := regexp.MustCompile(`^([A-Za-z][A-Za-z0-9]*Error)(:?\s*)(.*)`)
+	matches = exceptionRegex.FindStringSubmatch(line)
+	if len(matches) == 4 {
+		result := strings.Builder{}
+		result.WriteString(c.applySearchHighlighting(matches[1], c.theme.StatusError.Bold(true))) // Exception class
+		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Equals))                 // ": "
+		result.WriteString(c.applySearchHighlighting(matches[3], c.theme.JSONString))             // message
+		return result.String()
+	}
+
+	// Handle code lines with leading whitespace (    function_a())
+	if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
+		// Simple approach: highlight the whole line as code
 		return c.applySearchHighlighting(line, c.theme.JSONValue)
 	}
 

@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "example_trace.py", line 21, in <module>
+    function_a()
+  File "example_trace.py", line 17, in function_a
+    function_b()
+  File "example_trace.py", line 12, in function_b
+    value = function_c()
+  File "example_trace.py", line 6, in function_c
+    result = 10 / 0  # This line will cause an error
+ZeroDivisionError: division by zero

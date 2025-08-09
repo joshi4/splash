@@ -1,0 +1,15 @@
+{"level":"INFO","message":"Starting application"}
+Exception in thread "main" java.lang.ArithmeticException: / by zero
+	at com.example.MyClass.divide(MyClass.java:10)
+	at com.example.MyClass.calculate(MyClass.java:6)
+{"level":"INFO","message":"Switching to Python service"}
+Traceback (most recent call last):
+  File "example_trace.py", line 21, in <module>
+    function_a()
+  File "example_trace.py", line 17, in function_a
+    function_b()
+  File "example_trace.py", line 6, in function_c
+    result = 10 / 0  # This line will cause an error
+ZeroDivisionError: division by zero
+{"level":"ERROR","message":"Both services crashed"}
+2025/01/19 10:30:00 Application restarted
