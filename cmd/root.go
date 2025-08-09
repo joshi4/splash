@@ -134,7 +134,7 @@ var rootCmd = &cobra.Command{
 	Example: `  tail -f /var/log/app.log | splash
   docker logs mycontainer | splash
   kubectl logs pod-name | splash -s "ERROR"
-  cat access.log | splash -r "[45]\\d\\d"`,
+  cat access.log | splash -r "[45]\d\d"`,
 	Run: func(_ *cobra.Command, _ []string) {
 		if err := runSplash(); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
