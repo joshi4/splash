@@ -127,7 +127,7 @@ Splash automatically detects and colorizes these log formats:
 | **Apache Common** | `127.0.0.1 - - [19/Jan/2025:10:30:00 +0000] "GET /api HTTP/1.1" 200 1234` |
 | **Nginx** | `127.0.0.1 - - [19/Jan/2025:10:30:00 +0000] "GET /api HTTP/1.1" 200 1234 "-" "Mozilla/5.0"` |
 | **Syslog** | `Jan 19 10:30:00 hostname myapp[1234]: ERROR: Database connection failed` |
-| **Rsyslog** | `Aug 8 00:15:23 hostname syslogd[347]: ASL Sender Statistics` |
+| **Rsyslog** | `Aug  8 00:15:23 Shantanus-MacBook-Pro syslogd[347]: ASL Sender Statistics` |
 | **Go Standard** | `2025/01/19 10:30:00 ERROR: Database connection failed` |
 | **Rails** | `[2025-01-19 10:30:00] ERROR -- : Database connection failed` |
 | **Docker** | `2025-01-19T10:30:00.123456789Z ERROR Database connection failed` |
