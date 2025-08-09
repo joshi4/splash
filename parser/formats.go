@@ -23,6 +23,7 @@ const (
 	KubernetesFormat
 	HerokuFormat
 	GoTestFormat
+	JavaExceptionFormat
 )
 
 // String returns the string representation of the log format
@@ -52,6 +53,8 @@ func (f LogFormat) String() string {
 		return "Heroku"
 	case GoTestFormat:
 		return "Go Test"
+	case JavaExceptionFormat:
+		return "Java Exception"
 	default:
 		return "Unknown"
 	}
@@ -68,6 +71,7 @@ var (
 	legacyKubernetesRegex   = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z \d+ \S+:\d+\]`)
 	legacyHerokuRegex       = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2} app\[\S+\]:`)
 	legacyGoTestRegex       = regexp.MustCompile(`^(=== RUN|--- PASS:|--- FAIL:|--- SKIP:|=== NAME|=== CONT|\? .* \[no test files\]|PASS$|FAIL$|ok .* [\d\.]+[a-z]*$|FAIL .*)`)
+	legacyJavaExceptionRegex = regexp.MustCompile(`^(Exception in thread|Caused by:|\s+at\s+\S+\([^)]*\)|\s+\.\.\.|\s+more)`)
 )
 
 // DetectFormat analyzes a log line and returns the detected format
@@ -86,6 +90,11 @@ func DetectFormat(line string) LogFormat {
 	// Check for logfmt format
 	if isLogfmtFormat(line) {
 		return LogfmtFormat
+	}
+
+	// Check for Java Exception format (highly specific patterns)
+	if legacyJavaExceptionRegex.MatchString(line) {
+		return JavaExceptionFormat
 	}
 
 	// Check for GoTest format first (highly specific patterns)

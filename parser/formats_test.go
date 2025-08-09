@@ -59,6 +59,16 @@ func TestDetectFormat(t *testing.T) {
 			expected: HerokuFormat,
 		},
 		{
+			name:     "Java exception header",
+			line:     `Exception in thread "main" java.lang.ArithmeticException: / by zero`,
+			expected: JavaExceptionFormat,
+		},
+		{
+			name:     "Java caused by line", 
+			line:     `Caused by: java.lang.NullPointerException: Cannot invoke method`,
+			expected: JavaExceptionFormat,
+		},
+		{
 			name:     "Unknown format",
 			line:     `Some random log line that doesn't match any pattern`,
 			expected: UnknownFormat,
