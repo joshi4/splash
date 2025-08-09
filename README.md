@@ -14,6 +14,7 @@ Splash adds beautiful, adaptive colors to make logs easier to read.
 
 ## Screenshots
 
+Splash supports many standard log formats and output from popular languages like go(test logs) and java (exceptions)
 <table>
   <tr>
     <td><img src="./screenshots/go_test.jpeg" alt="output of go test for splash repo" width="1280" height="2480"/></td>
