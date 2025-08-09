@@ -39,6 +39,7 @@ func NewParser() *Parser {
 		detectors: []FormatDetector{
 			&JSONDetector{},
 			&LogfmtDetector{},
+			&JavaExceptionDetector{}, // High priority for Java exception headers
 			&GoTestDetector{},     // High priority for specific go test patterns
 			&KubernetesDetector{}, // Must be before DockerDetector
 			&HerokuDetector{},
@@ -109,15 +110,24 @@ LOOP:
 	}
 
 	if len(matches) == 0 {
-		// Handle continuation lines: stick with previous rsyslog/syslog format
+		// Handle continuation lines: stick with previous format only if appropriate
 		p.mu.RLock()
 		prev := p.previousFormat
 		p.mu.RUnlock()
+		
 		if prev == RsyslogFormat {
 			return RsyslogFormat
 		}
 		if prev == SyslogFormat {
 			return SyslogFormat
+		}
+		if prev == JavaExceptionFormat {
+			// For Java exceptions, only continue if line has leading whitespace
+			// Lines without leading whitespace that don't match exception headers should end the exception
+			if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
+				return JavaExceptionFormat
+			}
+			// Line has no leading whitespace and didn't match exception header - end exception
 		}
 		return UnknownFormat
 	}
@@ -547,4 +557,42 @@ func (d *GoTestDetector) Specificity() int {
 
 func (d *GoTestDetector) PatternLength() int {
 	return len(goTestPattern)
+}
+
+type JavaExceptionDetector struct{}
+
+// Match Java exception headers (no leading whitespace) and stack trace lines (with leading whitespace)
+const javaExceptionHeaderPattern = `^(Exception in thread|Caused by:)`
+const javaStackTracePattern = `^\s+(at\s+|\.\.\.|\d+\s+more)`
+
+var javaExceptionHeaderRegex = regexp.MustCompile(javaExceptionHeaderPattern)
+var javaStackTraceRegex = regexp.MustCompile(javaStackTracePattern)
+
+func (d *JavaExceptionDetector) Detect(ctx context.Context, line string) bool {
+	done := make(chan bool, 1)
+	go func() {
+		// Match exception headers OR stack trace lines
+		isHeader := javaExceptionHeaderRegex.MatchString(line)
+		isStackTrace := javaStackTraceRegex.MatchString(line)
+		done <- isHeader || isStackTrace
+	}()
+
+	select {
+	case result := <-done:
+		return result
+	case <-ctx.Done():
+		return false
+	}
+}
+
+func (d *JavaExceptionDetector) Format() LogFormat {
+	return JavaExceptionFormat
+}
+
+func (d *JavaExceptionDetector) Specificity() int {
+	return 70 // Higher than standard regex-based formats, same as GoTest
+}
+
+func (d *JavaExceptionDetector) PatternLength() int {
+	return len(javaExceptionHeaderPattern) + len(javaStackTracePattern)
 }

@@ -174,6 +174,8 @@ func (c *Colorizer) ColorizeLog(line string, format parser.LogFormat) string {
 		result = c.colorizeHeroku(line)
 	case parser.GoTestFormat:
 		result = c.colorizeGoTest(line)
+	case parser.JavaExceptionFormat:
+		result = c.colorizeJavaException(line)
 	default:
 		result = c.colorizeGenericLog(line)
 	}
@@ -965,4 +967,72 @@ func (c *Colorizer) formatPackageResultLine(line, prefix string, style lipgloss.
 		return result.String()
 	}
 	return ""
+}
+
+// colorizeJavaException colorizes Java exception stack traces with prominent file/line highlighting
+func (c *Colorizer) colorizeJavaException(line string) string {
+	// Handle exception header lines (Exception in thread "main" java.lang.ArithmeticException: / by zero)
+	if strings.HasPrefix(line, "Exception in thread") {
+		// Parse exception header: Exception in thread "thread-name" ExceptionClass: message
+		exceptionHeaderRegex := regexp.MustCompile(`^(Exception in thread ")([^"]+)(" )([^\s:]+)(: ?)(.*)`)
+		matches := exceptionHeaderRegex.FindStringSubmatch(line)
+		if len(matches) == 7 {
+			result := strings.Builder{}
+			result.WriteString(c.applySearchHighlighting(matches[1], c.theme.StatusError.Bold(true))) // "Exception in thread "
+			result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Service.Bold(true)))     // thread name
+			result.WriteString(c.applySearchHighlighting(matches[3], c.theme.StatusError.Bold(true))) // " 
+			result.WriteString(c.applySearchHighlighting(matches[4], c.theme.StatusError.Bold(true))) // ExceptionClass
+			result.WriteString(c.applySearchHighlighting(matches[5], c.theme.Equals))                // ": "
+			result.WriteString(c.applySearchHighlighting(matches[6], c.theme.JSONString))              // message
+			return result.String()
+		}
+		// Fallback for other exception headers
+		return c.applySearchHighlighting(line, c.theme.StatusError.Bold(true))
+	}
+
+	// Handle "Caused by:" lines
+	if strings.HasPrefix(strings.TrimSpace(line), "Caused by:") {
+		causedByRegex := regexp.MustCompile(`^(\s*)(Caused by: )([^\s:]+)(: ?)(.*)`)
+		matches := causedByRegex.FindStringSubmatch(line)
+		if len(matches) == 6 {
+			result := strings.Builder{}
+			result.WriteString(matches[1])                                                            // leading whitespace
+			result.WriteString(c.applySearchHighlighting(matches[2], c.theme.StatusWarn.Bold(true))) // "Caused by: "
+			result.WriteString(c.applySearchHighlighting(matches[3], c.theme.StatusError.Bold(true))) // ExceptionClass
+			result.WriteString(c.applySearchHighlighting(matches[4], c.theme.Equals))                // ": "
+			result.WriteString(c.applySearchHighlighting(matches[5], c.theme.JSONString))              // message
+			return result.String()
+		}
+		return c.applySearchHighlighting(line, c.theme.StatusWarn.Bold(true))
+	}
+
+	// Handle stack trace lines (	at com.example.MyClass.method(MyClass.java:10))
+	stackTraceRegex := regexp.MustCompile(`^(\s+at\s+)([^(]+)(\()([^:]+):(\d+)(\))(.*)`)
+	matches := stackTraceRegex.FindStringSubmatch(line)
+	if len(matches) == 8 {
+		result := strings.Builder{}
+		result.WriteString(c.applySearchHighlighting(matches[1], c.theme.Bracket))                         // "	at "
+		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Service))                           // method path
+		result.WriteString(c.applySearchHighlighting(matches[3], c.theme.Bracket))                          // "("
+		// File name with prominent highlighting - bright color that works on both light/dark
+		fileStyle := c.theme.StatusOK.Bold(true).Background(lipgloss.Color("#3366FF")).Foreground(lipgloss.Color("#FFFFFF"))
+		result.WriteString(c.applySearchHighlighting(matches[4], fileStyle))                                 // filename
+		result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))                                  // ":"
+		// Line number with prominent highlighting - bright color that works on both light/dark  
+		lineStyle := c.theme.StatusWarn.Bold(true).Background(lipgloss.Color("#FF6600")).Foreground(lipgloss.Color("#FFFFFF"))
+		result.WriteString(c.applySearchHighlighting(matches[5], lineStyle))                                 // line number
+		result.WriteString(c.applySearchHighlighting(matches[6], c.theme.Bracket))                          // ")"
+		if matches[7] != "" {
+			result.WriteString(c.applySearchHighlighting(matches[7], c.theme.JSONValue))                     // any trailing text
+		}
+		return result.String()
+	}
+
+	// Handle other stack trace related lines ("... X more", etc.)
+	if strings.Contains(line, "more") || strings.Contains(line, "...") {
+		return c.applySearchHighlighting(line, c.theme.JSONValue)
+	}
+
+	// Fallback for any unmatched lines
+	return c.applySearchHighlighting(line, c.theme.JSONValue)
 }

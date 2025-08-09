@@ -1,0 +1,10 @@
+{"level":"INFO","message":"Starting application"}
+Exception in thread "main" java.lang.ArithmeticException: / by zero
+	at com.example.MyClass.divide(MyClass.java:10)
+	at com.example.MyClass.calculate(MyClass.java:6)
+	at com.example.MyClass.main(MyClass.java:3)
+{"level":"ERROR","message":"Application crashed"}
+Caused by: java.sql.SQLException: Connection timeout
+	at com.mysql.cj.jdbc.ConnectionImpl.createNewIO(ConnectionImpl.java:836)
+	... 5 more
+2025/01/19 10:30:00 Application restarted
