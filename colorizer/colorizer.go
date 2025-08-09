@@ -982,10 +982,10 @@ func (c *Colorizer) colorizeJavaException(line string) string {
 			result := strings.Builder{}
 			result.WriteString(c.applySearchHighlighting(matches[1], c.theme.StatusError.Bold(true))) // "Exception in thread "
 			result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Service.Bold(true)))     // thread name
-			result.WriteString(c.applySearchHighlighting(matches[3], c.theme.StatusError.Bold(true))) // " 
+			result.WriteString(c.applySearchHighlighting(matches[3], c.theme.StatusError.Bold(true))) // "
 			result.WriteString(c.applySearchHighlighting(matches[4], c.theme.StatusError.Bold(true))) // ExceptionClass
-			result.WriteString(c.applySearchHighlighting(matches[5], c.theme.Equals))                // ": "
-			result.WriteString(c.applySearchHighlighting(matches[6], c.theme.JSONString))              // message
+			result.WriteString(c.applySearchHighlighting(matches[5], c.theme.Equals))                 // ": "
+			result.WriteString(c.applySearchHighlighting(matches[6], c.theme.JSONString))             // message
 			return result.String()
 		}
 		// Fallback for other exception headers
@@ -999,10 +999,10 @@ func (c *Colorizer) colorizeJavaException(line string) string {
 		if len(matches) == 6 {
 			result := strings.Builder{}
 			result.WriteString(matches[1])                                                            // leading whitespace
-			result.WriteString(c.applySearchHighlighting(matches[2], c.theme.StatusWarn.Bold(true))) // "Caused by: "
+			result.WriteString(c.applySearchHighlighting(matches[2], c.theme.StatusWarn.Bold(true)))  // "Caused by: "
 			result.WriteString(c.applySearchHighlighting(matches[3], c.theme.StatusError.Bold(true))) // ExceptionClass
-			result.WriteString(c.applySearchHighlighting(matches[4], c.theme.Equals))                // ": "
-			result.WriteString(c.applySearchHighlighting(matches[5], c.theme.JSONString))              // message
+			result.WriteString(c.applySearchHighlighting(matches[4], c.theme.Equals))                 // ": "
+			result.WriteString(c.applySearchHighlighting(matches[5], c.theme.JSONString))             // message
 			return result.String()
 		}
 		return c.applySearchHighlighting(line, c.theme.StatusWarn.Bold(true))
@@ -1013,19 +1013,19 @@ func (c *Colorizer) colorizeJavaException(line string) string {
 	matches := stackTraceRegex.FindStringSubmatch(line)
 	if len(matches) == 8 {
 		result := strings.Builder{}
-		result.WriteString(c.applySearchHighlighting(matches[1], c.theme.Bracket))                         // "	at "
-		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Service))                           // method path
-		result.WriteString(c.applySearchHighlighting(matches[3], c.theme.Bracket))                          // "("
+		result.WriteString(c.applySearchHighlighting(matches[1], c.theme.Bracket)) // "	at "
+		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Service)) // method path
+		result.WriteString(c.applySearchHighlighting(matches[3], c.theme.Bracket)) // "("
 		// File name with prominent styling - bright cyan, bold
 		fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
-		result.WriteString(c.applySearchHighlighting(matches[4], fileStyle))                                 // filename
-		result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))                                  // ":"
+		result.WriteString(c.applySearchHighlighting(matches[4], fileStyle)) // filename
+		result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))   // ":"
 		// Line number with prominent styling - bright magenta, bold
 		lineStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC0066", Dark: "#FF66CC"}).Bold(true)
-		result.WriteString(c.applySearchHighlighting(matches[5], lineStyle))                                 // line number
-		result.WriteString(c.applySearchHighlighting(matches[6], c.theme.Bracket))                          // ")"
+		result.WriteString(c.applySearchHighlighting(matches[5], lineStyle))       // line number
+		result.WriteString(c.applySearchHighlighting(matches[6], c.theme.Bracket)) // ")"
 		if matches[7] != "" {
-			result.WriteString(c.applySearchHighlighting(matches[7], c.theme.JSONValue))                     // any trailing text
+			result.WriteString(c.applySearchHighlighting(matches[7], c.theme.JSONValue)) // any trailing text
 		}
 		return result.String()
 	}
@@ -1051,17 +1051,17 @@ func (c *Colorizer) colorizePythonException(line string) string {
 	matches := fileLineRegex.FindStringSubmatch(line)
 	if len(matches) == 8 {
 		result := strings.Builder{}
-		result.WriteString(matches[1])                                                           // leading whitespace
-		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Bracket))              // "File "
+		result.WriteString(matches[1])                                             // leading whitespace
+		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Bracket)) // "File "
 		// File name with prominent styling - bright cyan, bold (same as Java)
 		fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
-		result.WriteString(c.applySearchHighlighting(matches[3], fileStyle))                    // filename
-		result.WriteString(c.applySearchHighlighting(matches[4], c.theme.Bracket))              // ", line "
+		result.WriteString(c.applySearchHighlighting(matches[3], fileStyle))       // filename
+		result.WriteString(c.applySearchHighlighting(matches[4], c.theme.Bracket)) // ", line "
 		// Line number with prominent styling - bright magenta, bold (same as Java)
 		lineStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC0066", Dark: "#FF66CC"}).Bold(true)
-		result.WriteString(c.applySearchHighlighting(matches[5], lineStyle))                    // line number
-		result.WriteString(c.applySearchHighlighting(matches[6], c.theme.Bracket))              // ", in "
-		result.WriteString(c.applySearchHighlighting(matches[7], c.theme.Service))              // function name
+		result.WriteString(c.applySearchHighlighting(matches[5], lineStyle))       // line number
+		result.WriteString(c.applySearchHighlighting(matches[6], c.theme.Bracket)) // ", in "
+		result.WriteString(c.applySearchHighlighting(matches[7], c.theme.Service)) // function name
 		return result.String()
 	}
 

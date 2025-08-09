@@ -64,7 +64,7 @@ func TestDetectFormat(t *testing.T) {
 			expected: JavaExceptionFormat,
 		},
 		{
-			name:     "Java caused by line", 
+			name:     "Java caused by line",
 			line:     `Caused by: java.lang.NullPointerException: Cannot invoke method`,
 			expected: JavaExceptionFormat,
 		},
