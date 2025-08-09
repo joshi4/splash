@@ -1016,12 +1016,12 @@ func (c *Colorizer) colorizeJavaException(line string) string {
 		result.WriteString(c.applySearchHighlighting(matches[1], c.theme.Bracket))                         // "	at "
 		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Service))                           // method path
 		result.WriteString(c.applySearchHighlighting(matches[3], c.theme.Bracket))                          // "("
-		// File name with prominent highlighting - bright color that works on both light/dark
-		fileStyle := c.theme.StatusOK.Bold(true).Background(lipgloss.Color("#3366FF")).Foreground(lipgloss.Color("#FFFFFF"))
+		// File name with prominent styling - bright cyan, bold
+		fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
 		result.WriteString(c.applySearchHighlighting(matches[4], fileStyle))                                 // filename
 		result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))                                  // ":"
-		// Line number with prominent highlighting - bright color that works on both light/dark  
-		lineStyle := c.theme.StatusWarn.Bold(true).Background(lipgloss.Color("#FF6600")).Foreground(lipgloss.Color("#FFFFFF"))
+		// Line number with prominent styling - bright magenta, bold
+		lineStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC0066", Dark: "#FF66CC"}).Bold(true)
 		result.WriteString(c.applySearchHighlighting(matches[5], lineStyle))                                 // line number
 		result.WriteString(c.applySearchHighlighting(matches[6], c.theme.Bracket))                          // ")"
 		if matches[7] != "" {
@@ -1053,12 +1053,12 @@ func (c *Colorizer) colorizePythonException(line string) string {
 		result := strings.Builder{}
 		result.WriteString(matches[1])                                                           // leading whitespace
 		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Bracket))              // "File "
-		// File name with prominent highlighting - purple background for Python files
-		fileStyle := c.theme.StatusOK.Bold(true).Background(lipgloss.Color("#9C27B0")).Foreground(lipgloss.Color("#FFFFFF"))
+		// File name with prominent styling - bright cyan, bold (same as Java)
+		fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
 		result.WriteString(c.applySearchHighlighting(matches[3], fileStyle))                    // filename
 		result.WriteString(c.applySearchHighlighting(matches[4], c.theme.Bracket))              // ", line "
-		// Line number with prominent highlighting - orange background  
-		lineStyle := c.theme.StatusWarn.Bold(true).Background(lipgloss.Color("#FF6600")).Foreground(lipgloss.Color("#FFFFFF"))
+		// Line number with prominent styling - bright magenta, bold (same as Java)
+		lineStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC0066", Dark: "#FF66CC"}).Bold(true)
 		result.WriteString(c.applySearchHighlighting(matches[5], lineStyle))                    // line number
 		result.WriteString(c.applySearchHighlighting(matches[6], c.theme.Bracket))              // ", in "
 		result.WriteString(c.applySearchHighlighting(matches[7], c.theme.Service))              // function name
