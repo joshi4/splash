@@ -43,7 +43,7 @@ Splash takes logs from stdin and auto detects well known log formats and adds co
 - Dependencies: Cobra CLI framework (`github.com/spf13/cobra`), Lipgloss for styling (`github.com/charmbracelet/lipgloss`)
 
 ## Code Style Guidelines
-- Standard Go formatting: use `gofmt` and `go vet`
+- Always run: `'gofmt -s -w .'` to format code before you finish your work.
 - Imports: standard library first, then third-party, then local imports
 - Error handling: explicit error checking, return errors up the call stack
 - Naming: camelCase for private, PascalCase for public, descriptive names
