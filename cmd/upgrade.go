@@ -86,13 +86,22 @@ func runUpgradeWithOptions(verbose, interactive bool) error {
 		fmt.Fprintf(os.Stderr, "\n📦 A new version of splash is available!\n")
 		fmt.Fprintf(os.Stderr, "Would you like to upgrade now? (y/N): ")
 
-		// Read user input
-		reader := bufio.NewReader(os.Stdin)
+		// Read user input from terminal directly, not from stdin
+		// This ensures interactive input works even when splash is used in pipes
+		tty, err := os.OpenFile("/dev/tty", os.O_RDONLY, 0)
+		if err != nil {
+			// If we can't open /dev/tty, fallback to showing the manual command
+			fmt.Fprintf(os.Stderr, "Run 'splash upgrade' to update.\n")
+			return nil
+		}
+		defer tty.Close()
+
+		reader := bufio.NewReader(tty)
 		response, err := reader.ReadString('\n')
 		if err != nil {
 			// If we can't read input, fallback to showing the manual command
 			fmt.Fprintf(os.Stderr, "Run 'splash upgrade' to update.\n")
-			return err
+			return nil
 		}
 
 		response = strings.ToLower(strings.TrimSpace(response))
@@ -116,17 +125,14 @@ func runUpgradeWithOptions(verbose, interactive bool) error {
 		if verbose || interactive {
 			if interactive {
 				fmt.Fprintf(os.Stderr, "Upgrade failed: %v\n", err)
-				fmt.Fprintf(os.Stderr, "You can try again with 'splash upgrade'\n")
 			}
-			return fmt.Errorf("failed to upgrade: %w", err)
 		}
-		return nil // Silently fail for non-verbose calls
+		return fmt.Errorf("failed to upgrade: %w", err)
 	}
 
 	if verbose || interactive {
 		if interactive {
 			fmt.Fprintf(os.Stderr, "splash has been successfully upgraded to the latest version!\n")
-			fmt.Fprintf(os.Stderr, "Please restart splash to use the new version.\n")
 		} else {
 			fmt.Println("splash has been successfully upgraded to the latest version")
 		}
@@ -141,8 +147,7 @@ func CheckForUpgradesOnExit() {
 		return // Skip upgrade checks in CI environments
 	}
 	// Reuse the upgrade logic but with silent error handling and interactive mode
-	err := runUpgradeWithOptions(false, true) // verbose=false, interactive=true
-	if err != nil {
+	if err := runUpgradeWithOptions(false, true); err != nil {
 		// Exit with error code on upgrade failure during interactive mode
 		os.Exit(1)
 	}
