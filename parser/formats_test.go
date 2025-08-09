@@ -69,6 +69,17 @@ func TestDetectFormat(t *testing.T) {
 			expected: JavaExceptionFormat,
 		},
 		{
+			name:     "Python traceback header",
+			line:     `Traceback (most recent call last):`,
+			expected: PythonExceptionFormat,
+		},
+
+		{
+			name:     "Python exception line",
+			line:     `ZeroDivisionError: division by zero`,
+			expected: PythonExceptionFormat,
+		},
+		{
 			name:     "Unknown format",
 			line:     `Some random log line that doesn't match any pattern`,
 			expected: UnknownFormat,
@@ -82,7 +93,9 @@ func TestDetectFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := DetectFormat(tt.line)
+			// Create a fresh parser for each test to avoid stateful interference
+			p := NewParser()
+			result := p.DetectFormat(tt.line)
 			if result != tt.expected {
 				t.Errorf("DetectFormat(%q) = %v, expected %v", tt.line, result, tt.expected)
 			}

@@ -40,6 +40,7 @@ func NewParser() *Parser {
 			&JSONDetector{},
 			&LogfmtDetector{},
 			&JavaExceptionDetector{}, // High priority for Java exception headers
+			&PythonExceptionDetector{}, // High priority for Python traceback headers
 			&GoTestDetector{},     // High priority for specific go test patterns
 			&KubernetesDetector{}, // Must be before DockerDetector
 			&HerokuDetector{},
@@ -128,6 +129,14 @@ LOOP:
 				return JavaExceptionFormat
 			}
 			// Line has no leading whitespace and didn't match exception header - end exception
+		}
+		if prev == PythonExceptionFormat {
+			// For Python exceptions, only continue if line has leading whitespace
+			// Lines without leading whitespace that don't match headers should end the exception
+			if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
+				return PythonExceptionFormat
+			}
+			// Line has no leading whitespace and didn't match traceback/exception header - end exception
 		}
 		return UnknownFormat
 	}
@@ -595,4 +604,42 @@ func (d *JavaExceptionDetector) Specificity() int {
 
 func (d *JavaExceptionDetector) PatternLength() int {
 	return len(javaExceptionHeaderPattern) + len(javaStackTracePattern)
+}
+
+type PythonExceptionDetector struct{}
+
+// Only match distinctive Python traceback headers and exception lines, not stack trace lines
+const pythonTracebackHeaderPattern = `^Traceback \(most recent call last\):`
+const pythonExceptionPattern = `^[A-Za-z][A-Za-z0-9]*Error:`
+
+var pythonTracebackHeaderRegex = regexp.MustCompile(pythonTracebackHeaderPattern)
+var pythonExceptionRegex = regexp.MustCompile(pythonExceptionPattern)
+
+func (d *PythonExceptionDetector) Detect(ctx context.Context, line string) bool {
+	done := make(chan bool, 1)
+	go func() {
+		// Only match traceback headers OR exception lines (let continuation logic handle the rest)
+		isHeader := pythonTracebackHeaderRegex.MatchString(line)
+		isException := pythonExceptionRegex.MatchString(line)
+		done <- isHeader || isException
+	}()
+
+	select {
+	case result := <-done:
+		return result
+	case <-ctx.Done():
+		return false
+	}
+}
+
+func (d *PythonExceptionDetector) Format() LogFormat {
+	return PythonExceptionFormat
+}
+
+func (d *PythonExceptionDetector) Specificity() int {
+	return 70 // Higher than standard regex-based formats, same as GoTest and Java
+}
+
+func (d *PythonExceptionDetector) PatternLength() int {
+	return len(pythonTracebackHeaderPattern) + len(pythonExceptionPattern)
 }
