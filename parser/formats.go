@@ -60,8 +60,6 @@ func (f LogFormat) String() string {
 	}
 }
 
-
-
 // DetectFormat is deprecated. Use NewParser().DetectFormat() for stateful detection with better performance and accuracy.
 // This function is kept only for backward compatibility and will be removed in a future version.
 func DetectFormat(line string) LogFormat {

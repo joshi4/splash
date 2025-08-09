@@ -5,10 +5,9 @@ import (
 )
 
 func TestJavaExceptionStatefulDetection(t *testing.T) {
-
 	testCases := []struct {
-		name           string
-		lines          []string
+		name            string
+		lines           []string
 		expectedFormats []LogFormat
 	}{
 		{
@@ -57,15 +56,15 @@ func TestJavaExceptionStatefulDetection(t *testing.T) {
 				"2025/01/19 10:30:00 Application restarted",
 			},
 			expectedFormats: []LogFormat{
-				JSONFormat,           // JSON log
-				JavaExceptionFormat,  // Exception header
-				JavaExceptionFormat,  // Stack trace with leading whitespace
-				JavaExceptionFormat,  // Stack trace with leading whitespace
-				JSONFormat,           // JSON log (switches format)
-				JavaExceptionFormat,  // Caused by header (new exception)
-				JavaExceptionFormat,  // Stack trace with leading whitespace
-				JavaExceptionFormat,  // ... more with leading whitespace
-				GoStandardFormat,     // Go timestamp format (switches format)
+				JSONFormat,          // JSON log
+				JavaExceptionFormat, // Exception header
+				JavaExceptionFormat, // Stack trace with leading whitespace
+				JavaExceptionFormat, // Stack trace with leading whitespace
+				JSONFormat,          // JSON log (switches format)
+				JavaExceptionFormat, // Caused by header (new exception)
+				JavaExceptionFormat, // Stack trace with leading whitespace
+				JavaExceptionFormat, // ... more with leading whitespace
+				GoStandardFormat,    // Go timestamp format (switches format)
 			},
 		},
 		{
@@ -91,8 +90,8 @@ func TestJavaExceptionStatefulDetection(t *testing.T) {
 				`Exception in thread "main" java.lang.ArithmeticException: / by zero`,
 				"\tat com.example.MyClass.divide(MyClass.java:10)",
 				"    some continuation line with spaces", // Leading spaces should continue exception
-				"\t\tanother continuation with tabs",      // Leading tabs should continue exception
-				"No leading whitespace ends it",           // No leading whitespace should end exception
+				"\t\tanother continuation with tabs",     // Leading tabs should continue exception
+				"No leading whitespace ends it",          // No leading whitespace should end exception
 			},
 			expectedFormats: []LogFormat{
 				JavaExceptionFormat, // Exception header
@@ -228,16 +227,16 @@ func TestJavaExceptionWithTestData(t *testing.T) {
 	}
 
 	expectedFormats := []LogFormat{
-		JSONFormat,           // JSON log
-		JavaExceptionFormat,  // Exception header
-		JavaExceptionFormat,  // Stack trace
-		JavaExceptionFormat,  // Stack trace
-		JavaExceptionFormat,  // Stack trace
-		JSONFormat,           // JSON log (switches format)
-		JavaExceptionFormat,  // Caused by header (new exception)
-		JavaExceptionFormat,  // Stack trace
-		JavaExceptionFormat,  // ... more
-		GoStandardFormat,     // Go timestamp format (switches format)
+		JSONFormat,          // JSON log
+		JavaExceptionFormat, // Exception header
+		JavaExceptionFormat, // Stack trace
+		JavaExceptionFormat, // Stack trace
+		JavaExceptionFormat, // Stack trace
+		JSONFormat,          // JSON log (switches format)
+		JavaExceptionFormat, // Caused by header (new exception)
+		JavaExceptionFormat, // Stack trace
+		JavaExceptionFormat, // ... more
+		GoStandardFormat,    // Go timestamp format (switches format)
 	}
 
 	for i, line := range testLines {

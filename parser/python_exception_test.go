@@ -6,10 +6,9 @@ import (
 )
 
 func TestPythonExceptionStatefulDetection(t *testing.T) {
-
 	testCases := []struct {
-		name           string
-		lines          []string
+		name            string
+		lines           []string
 		expectedFormats []LogFormat
 	}{
 		{
@@ -86,7 +85,7 @@ func TestPythonExceptionStatefulDetection(t *testing.T) {
 				`  File "example_trace.py", line 21, in <module>`,
 				"    some code line with spaces", // Leading spaces should continue exception
 				"\t\tanother line with tabs",     // Leading tabs should continue exception
-				"No leading whitespace ends it", // No leading whitespace should end exception
+				"No leading whitespace ends it",  // No leading whitespace should end exception
 			},
 			expectedFormats: []LogFormat{
 				PythonExceptionFormat, // Traceback header
@@ -201,7 +200,7 @@ func TestPythonExceptionPatterns(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			// Start with a traceback header to establish Python exception context
 			parser.DetectFormat("Traceback (most recent call last):")
-			
+
 			actual := parser.DetectFormat(tc.line)
 			if actual != tc.expected {
 				t.Errorf("Line: %q\n  Expected: %s\n  Actual: %s",

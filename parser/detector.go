@@ -39,10 +39,10 @@ func NewParser() *Parser {
 		detectors: []FormatDetector{
 			&JSONDetector{},
 			&LogfmtDetector{},
-			&JavaExceptionDetector{}, // High priority for Java exception headers
+			&JavaExceptionDetector{},   // High priority for Java exception headers
 			&PythonExceptionDetector{}, // High priority for Python traceback headers
-			&GoTestDetector{},     // High priority for specific go test patterns
-			&KubernetesDetector{}, // Must be before DockerDetector
+			&GoTestDetector{},          // High priority for specific go test patterns
+			&KubernetesDetector{},      // Must be before DockerDetector
 			&HerokuDetector{},
 			&RsyslogDetector{}, // Before generic Syslog to be more specific
 			&NginxDetector{},   // Must be before ApacheCommonDetector
@@ -115,7 +115,7 @@ LOOP:
 		p.mu.RLock()
 		prev := p.previousFormat
 		p.mu.RUnlock()
-		
+
 		if prev == RsyslogFormat {
 			return RsyslogFormat
 		}
