@@ -2,3 +2,4 @@ Exception in thread "main" java.lang.ArithmeticException: / by zero
 	at com.example.MyClass.divide(MyClass.java:10)
 	at com.example.MyClass.calculate(MyClass.java:6)
 	at com.example.MyClass.main(MyClass.java:3)
+
