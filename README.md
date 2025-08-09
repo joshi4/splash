@@ -53,6 +53,12 @@ brew tap joshi4/splash
 brew install splash
 ```
 
+### For Linux users
+
+```bash
+curl -fsSL https://install.getsplash.sh | sh
+```
+
 ### For Go users
 
 ```bash
