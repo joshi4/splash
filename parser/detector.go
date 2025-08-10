@@ -209,20 +209,72 @@ type LogfmtDetector struct{}
 func (d *LogfmtDetector) Detect(ctx context.Context, line string) bool {
 	done := make(chan bool, 1)
 	go func() {
-		parts := strings.Fields(line)
-		if len(parts) == 0 {
+		line = strings.TrimSpace(line)
+		if len(line) == 0 {
 			done <- false
 			return
 		}
 
 		kvPairs := 0
-		for _, part := range parts {
-			if strings.Contains(part, "=") && !strings.HasPrefix(part, "=") && !strings.HasSuffix(part, "=") {
-				kvPairs++
-			}
-		}
+		totalTokens := 0
 
-		done <- kvPairs > 0 && float64(kvPairs)/float64(len(parts)) > 0.5
+		// Parse the line character by character to handle quoted values
+		i := 0
+		for i < len(line) {
+			// Skip whitespace
+			for i < len(line) && line[i] == ' ' {
+				i++
+			}
+			if i >= len(line) {
+				break
+			}
+
+			for i < len(line) && line[i] != '=' && line[i] != ' ' {
+				i++
+			}
+
+			if i >= len(line) || line[i] != '=' {
+				// Not a key=value pair, skip to next whitespace
+				for i < len(line) && line[i] != ' ' {
+					i++
+				}
+				totalTokens++
+				continue
+			}
+
+			i++ // skip the '='
+
+			if i >= len(line) {
+				// Key with no value (key=)
+				kvPairs++
+				totalTokens++
+				break
+			}
+
+			if line[i] == '"' {
+				// Quoted value
+				i++ // skip opening quote
+				for i < len(line) && line[i] != '"' {
+					if line[i] == '\\' && i+1 < len(line) {
+						i += 2 // skip escaped character
+					} else {
+						i++
+					}
+				}
+				if i < len(line) {
+					i++ // skip closing quote
+				}
+			} else {
+				// Unquoted value - read until whitespace
+				for i < len(line) && line[i] != ' ' {
+					i++
+				}
+			}
+
+			kvPairs++
+			totalTokens++
+		}
+		done <- kvPairs > 0 && totalTokens > 0 && float64(kvPairs)/float64(totalTokens) > 0.5
 	}()
 
 	select {

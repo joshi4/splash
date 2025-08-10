@@ -25,6 +25,21 @@ func TestOptimizedParser(t *testing.T) {
 			expected: LogfmtFormat,
 		},
 		{
+			name:     "Logfmt with complex quoted values and spaces",
+			line:     `time="2021-09-15T21:17:10.220731Z" level=error msg="error retrieving pod status: pod inc-1-enh-domain-c14-ns-2/hello-inc-1-enh-domain-c14-ns-2-3-d8f465685-k75gp is not found: PodNotFound" namespace=inc-1-enh-domain-c14-ns-2 pod=hello-inc-1-enh-domain-c14-ns-2-3-d8f465685-k75gp reason= status=Pending`,
+			expected: LogfmtFormat,
+		},
+		{
+			name:     "Logfmt with nested error message and UUID",
+			line:     `time="2021-09-15T21:17:11.674149Z" level=warning msg="Failed to DeletePod in the provider" error="pod inc-1-domain-c14-ns-6/fe-inc-1-domain-c14-ns-6-5-656d9bb695-4584b is not found: PodNotFound" namespace=inc-1-domain-c14-ns-6 pod=fe-inc-1-domain-c14-ns-6-5-656d9bb695-4584b uid=be2def59-3a08-42fd-8f84-6f64cfcefa93`,
+			expected: LogfmtFormat,
+		},
+		{
+			name:     "Logfmt with empty values",
+			line:     `time="2021-09-15T21:17:11.678991Z" level=info msg="DeletionGracePeriodSeconds set to 0" namespace=inc-1-domain-c14-ns-6 pod=fe-inc-1-domain-c14-ns-6-5-656d9bb695-4584b uid=be2def59-3a08-42fd-8f84-6f64cfcefa93`,
+			expected: LogfmtFormat,
+		},
+		{
 			name:     "Apache Common format",
 			line:     `127.0.0.1 - - [19/Jan/2025:10:30:00 +0000] "GET /api/users HTTP/1.1" 200 1234`,
 			expected: ApacheCommonFormat,
@@ -219,6 +234,70 @@ func TestSpecificityOrdering(t *testing.T) {
 				result := parser.DetectFormat(tt.line)
 				if result != tt.expected {
 					t.Errorf("Expected %v, got %v. Reason: %s", tt.expected, result, tt.reason)
+				}
+			}
+		})
+	}
+}
+
+func TestLogfmtComplexQuotedValues(t *testing.T) {
+	parser := NewParser()
+	
+	// Test cases specifically for complex logfmt strings with quoted values containing spaces
+	complexLogfmtTests := []struct {
+		name     string
+		line     string
+		expected LogFormat
+	}{
+		{
+			name:     "Logfmt with error retrieving pod status",
+			line:     `time="2021-09-15T21:17:10.220731Z" level=error msg="error retrieving pod status: pod inc-1-enh-domain-c14-ns-2/hello-inc-1-enh-domain-c14-ns-2-3-d8f465685-k75gp is not found: PodNotFound" namespace=inc-1-enh-domain-c14-ns-2 pod=hello-inc-1-enh-domain-c14-ns-2-3-d8f465685-k75gp reason= status=Pending`,
+			expected: LogfmtFormat,
+		},
+		{
+			name:     "Logfmt with DeletePod warning",
+			line:     `time="2021-09-15T21:17:11.674149Z" level=warning msg="Failed to DeletePod in the provider" error="pod inc-1-domain-c14-ns-6/fe-inc-1-domain-c14-ns-6-5-656d9bb695-4584b is not found: PodNotFound" namespace=inc-1-domain-c14-ns-6 pod=fe-inc-1-domain-c14-ns-6-5-656d9bb695-4584b uid=be2def59-3a08-42fd-8f84-6f64cfcefa93`,
+			expected: LogfmtFormat,
+		},
+		{
+			name:     "Logfmt with DeletionGracePeriodSeconds info",
+			line:     `time="2021-09-15T21:17:11.678991Z" level=info msg="DeletionGracePeriodSeconds set to 0" namespace=inc-1-domain-c14-ns-6 pod=fe-inc-1-domain-c14-ns-6-5-656d9bb695-4584b uid=be2def59-3a08-42fd-8f84-6f64cfcefa93`,
+			expected: LogfmtFormat,
+		},
+		{
+			name:     "Logfmt with Pod deleted info",
+			line:     `time="2021-09-15T21:17:11.679036Z" level=info msg="Pod deleted" namespace=inc-1-domain-c14-ns-6 pod=fe-inc-1-domain-c14-ns-6-5-656d9bb695-4584b uid=be2def59-3a08-42fd-8f84-6f64cfcefa93`,
+			expected: LogfmtFormat,
+		},
+		{
+			name:     "Logfmt with error retrieving pod status (second instance)",
+			line:     `time="2021-09-15T21:18:20.335825Z" level=error msg="error retrieving pod status: pod inc-1-enh-domain-c14-ns-2/hello-inc-1-enh-domain-c14-ns-2-7-5ddd6bcd69-6rqct is not found: PodNotFound" namespace=inc-1-enh-domain-c14-ns-2 pod=hello-inc-1-enh-domain-c14-ns-2-7-5ddd6bcd69-6rqct reason= status=Pending`,
+			expected: LogfmtFormat,
+		},
+		{
+			name:     "Logfmt with mixed quoted and unquoted values",
+			line:     `timestamp="2021-09-15T21:17:10.220731Z" level=error component=scheduler msg="Failed to schedule pod" reason="Insufficient resources" status=Failed`,
+			expected: LogfmtFormat,
+		},
+		{
+			name:     "Logfmt with empty quoted values",
+			line:     `time="2021-09-15T21:17:10.220731Z" level=error msg="" namespace=default pod=test-pod reason="" status=`,
+			expected: LogfmtFormat,
+		},
+		{
+			name:     "Logfmt with special characters in quoted values",
+			line:     `time="2021-09-15T21:17:10.220731Z" level=error msg="Error: failed to connect to 'https://api.example.com/v1' with status 500" url="https://api.example.com/v1" status_code=500`,
+			expected: LogfmtFormat,
+		},
+	}
+
+	for _, tt := range complexLogfmtTests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test multiple times to ensure deterministic behavior
+			for i := 0; i < 3; i++ {
+				result := parser.DetectFormat(tt.line)
+				if result != tt.expected {
+					t.Errorf("Iteration %d: DetectFormat(%q) = %v, expected %v", i, tt.line, result, tt.expected)
 				}
 			}
 		})
