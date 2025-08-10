@@ -88,7 +88,7 @@ brews:
     test: |
       system "#{bin}/splash", "version"
     install: |
-      bin.install "splash"
+      bin.install "splash_darwin_all" => "splash"
 
 # Release configuration
 release:
