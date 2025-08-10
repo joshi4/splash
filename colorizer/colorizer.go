@@ -241,6 +241,14 @@ func (c *Colorizer) colorizeJSONValue(key string, value interface{}) string {
 			styledValue := c.applySearchHighlighting(v, c.theme.Service)
 			return c.theme.Quote.Render(`"`) + styledValue + c.theme.Quote.Render(`"`)
 		}
+		if c.isIdentifierKey(key) {
+			styledValue := c.applySearchHighlighting(v, c.theme.Service)
+			return c.theme.Quote.Render(`"`) + styledValue + c.theme.Quote.Render(`"`)
+		}
+		if c.isStatusKey(key) {
+			styledValue := c.applySearchHighlighting(v, c.theme.GetHTTPStatusStyle(v))
+			return c.theme.Quote.Render(`"`) + styledValue + c.theme.Quote.Render(`"`)
+		}
 		// Regular string value
 		styledValue := c.applySearchHighlighting(v, c.theme.JSONString)
 		return c.theme.Quote.Render(`"`) + styledValue + c.theme.Quote.Render(`"`)
@@ -352,6 +360,12 @@ func (c *Colorizer) colorizeLogfmt(line string) string {
 					result.WriteString(c.applySearchHighlighting(value, c.theme.Timestamp))
 				case c.isServiceKey(key):
 					result.WriteString(c.applySearchHighlighting(value, c.theme.Service))
+				case c.isIdentifierKey(key):
+					result.WriteString(c.applySearchHighlighting(value, c.theme.Service)) // Use Service color for IDs
+				case c.isStatusKey(key):
+					// Parse status code and use appropriate HTTP status style
+					statusCode := strings.Trim(cleanValue, `"`)
+					result.WriteString(c.applySearchHighlighting(value, c.theme.GetHTTPStatusStyle(statusCode)))
 				default:
 					result.WriteString(c.applySearchHighlighting(value, c.theme.LogfmtValue))
 				}
@@ -471,6 +485,18 @@ func (c *Colorizer) isTimestampKey(key string) bool {
 func (c *Colorizer) isServiceKey(key string) bool {
 	lowerKey := strings.ToLower(key)
 	return lowerKey == "service" || lowerKey == "component" || lowerKey == "module" || lowerKey == "app"
+}
+
+func (c *Colorizer) isIdentifierKey(key string) bool {
+	lowerKey := strings.ToLower(key)
+	return lowerKey == "uid" || lowerKey == "uuid" || lowerKey == "user_id" || lowerKey == "userid" || 
+		lowerKey == "request_id" || lowerKey == "requestid" || lowerKey == "req_id" || lowerKey == "reqid"
+}
+
+func (c *Colorizer) isStatusKey(key string) bool {
+	lowerKey := strings.ToLower(key)
+	return lowerKey == "status" || lowerKey == "status_code" || lowerKey == "statuscode" || 
+		lowerKey == "http_status" || lowerKey == "httpstatus"
 }
 
 func (c *Colorizer) looksLikeLogLevel(s string) bool {
