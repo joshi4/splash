@@ -320,64 +320,118 @@ func (c *Colorizer) colorizeJSONArray(arr []interface{}) string {
 
 // colorizeLogfmt adds colors to logfmt lines
 func (c *Colorizer) colorizeLogfmt(line string) string {
-	// Simple logfmt parsing - split by spaces and look for key=value pairs
-	parts := strings.Fields(line)
+	line = strings.TrimSpace(line)
+	if len(line) == 0 {
+		return line
+	}
+
 	result := strings.Builder{}
 
-	for i, part := range parts {
-		if i > 0 {
-			result.WriteString(" ")
+	// Parse the line character by character to handle quoted values properly
+	i := 0
+	for i < len(line) {
+		// Skip whitespace and add it to result
+		whitespaceStart := i
+		for i < len(line) && line[i] == ' ' {
+			i++
+		}
+		if i > whitespaceStart {
+			result.WriteString(line[whitespaceStart:i])
+		}
+		if i >= len(line) {
+			break
 		}
 
-		if strings.Contains(part, "=") && !strings.HasPrefix(part, "=") && !strings.HasSuffix(part, "=") {
-			// This is a key=value pair
-			kv := strings.SplitN(part, "=", 2)
-			if len(kv) == 2 {
-				key, value := kv[0], kv[1]
+		// Look for key=value pairs
+		keyStart := i
+		for i < len(line) && line[i] != '=' && line[i] != ' ' {
+			i++
+		}
 
-				// Remove quotes from value if present
-				cleanValue := strings.Trim(value, `"`)
+		if i < len(line) && line[i] == '=' {
+			// Found a key=value pair
+			key := line[keyStart:i]
+			i++ // skip the '='
 
-				// Color the key with search highlighting
-				keyStyle := c.theme.LogfmtKey
-				if c.isLogLevelKey(key) {
-					keyStyle = c.theme.GetLogLevelStyle(key)
-				}
-				result.WriteString(c.applySearchHighlighting(key, keyStyle))
-				result.WriteString(c.theme.Equals.Render("="))
+			// Color the key with search highlighting
+			keyStyle := c.theme.LogfmtKey
+			if c.isLogLevelKey(key) {
+				keyStyle = c.theme.GetLogLevelStyle(key)
+			}
+			result.WriteString(c.applySearchHighlighting(key, keyStyle))
+			result.WriteString(c.theme.Equals.Render("="))
 
-				// Color the value based on key with search highlighting
-				switch {
-				case c.isLogLevelKey(key):
-					if strings.HasPrefix(value, `"`) && strings.HasSuffix(value, `"`) {
-						result.WriteString(c.theme.Quote.Render(`"`))
-						result.WriteString(c.applySearchHighlighting(cleanValue, c.theme.GetLogLevelStyle(cleanValue)))
-						result.WriteString(c.theme.Quote.Render(`"`))
+			if i >= len(line) {
+				// Key with no value (key=)
+				break
+			}
+
+			valueStart := i
+			var value string
+			var cleanValue string
+
+			if line[i] == '"' {
+				// Quoted value
+				valueStart = i
+				i++ // skip opening quote
+				for i < len(line) && line[i] != '"' {
+					if line[i] == '\\' && i+1 < len(line) {
+						i += 2 // skip escaped character
 					} else {
-						result.WriteString(c.applySearchHighlighting(value, c.theme.GetLogLevelStyle(cleanValue)))
+						i++
 					}
-				case c.isTimestampKey(key):
-					result.WriteString(c.applySearchHighlighting(value, c.theme.Timestamp))
-				case c.isServiceKey(key):
-					result.WriteString(c.applySearchHighlighting(value, c.theme.Service))
-				case c.isIdentifierKey(key):
-					result.WriteString(c.applySearchHighlighting(value, c.theme.Service)) // Use Service color for IDs
-				case c.isStatusKey(key):
-					// Parse status code and use appropriate HTTP status style
-					statusCode := strings.Trim(cleanValue, `"`)
-					result.WriteString(c.applySearchHighlighting(value, c.theme.GetHTTPStatusStyle(statusCode)))
-				default:
-					result.WriteString(c.applySearchHighlighting(value, c.theme.LogfmtValue))
 				}
+				if i < len(line) {
+					i++ // skip closing quote
+				}
+				value = line[valueStart:i]
+				cleanValue = strings.Trim(value, `"`)
 			} else {
-				result.WriteString(part)
+				// Unquoted value - read until whitespace
+				for i < len(line) && line[i] != ' ' {
+					i++
+				}
+				value = line[valueStart:i]
+				cleanValue = value
+			}
+
+			// Color the value based on key with search highlighting
+			switch {
+			case c.isLogLevelKey(key):
+				if strings.HasPrefix(value, `"`) && strings.HasSuffix(value, `"`) {
+					result.WriteString(c.theme.Quote.Render(`"`))
+					result.WriteString(c.applySearchHighlighting(cleanValue, c.theme.GetLogLevelStyle(cleanValue)))
+					result.WriteString(c.theme.Quote.Render(`"`))
+				} else {
+					result.WriteString(c.applySearchHighlighting(value, c.theme.GetLogLevelStyle(cleanValue)))
+				}
+			case c.isTimestampKey(key):
+				result.WriteString(c.applySearchHighlighting(value, c.theme.Timestamp))
+			case c.isServiceKey(key):
+				result.WriteString(c.applySearchHighlighting(value, c.theme.Service))
+			case c.isIdentifierKey(key):
+				result.WriteString(c.applySearchHighlighting(value, c.theme.Service)) // Use Service color for IDs
+			case c.isStatusKey(key):
+				// Parse status code and use appropriate HTTP status style
+				statusCode := strings.Trim(cleanValue, `"`)
+				result.WriteString(c.applySearchHighlighting(value, c.theme.GetHTTPStatusStyle(statusCode)))
+			default:
+				result.WriteString(c.applySearchHighlighting(value, c.theme.LogfmtValue))
 			}
 		} else {
-			// Not a key=value pair, check if it's a log level
-			if c.looksLikeLogLevel(part) {
-				result.WriteString(c.applySearchHighlighting(part, c.theme.GetLogLevelStyle(part)))
+			// Not a key=value pair, read the token
+			tokenEnd := i
+			for tokenEnd < len(line) && line[tokenEnd] != ' ' {
+				tokenEnd++
+			}
+			token := line[keyStart:tokenEnd]
+			i = tokenEnd
+
+			// Check if it's a log level
+			if c.looksLikeLogLevel(token) {
+				result.WriteString(c.applySearchHighlighting(token, c.theme.GetLogLevelStyle(token)))
 			} else {
-				result.WriteString(c.applySearchHighlighting(part, lipgloss.NewStyle()))
+				result.WriteString(c.applySearchHighlighting(token, lipgloss.NewStyle()))
 			}
 		}
 	}
