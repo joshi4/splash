@@ -1363,3 +1363,59 @@ func TestGoTestFormatDetection(t *testing.T) {
 		})
 	}
 }
+func TestLogfmtSpecialKeys(t *testing.T) {
+	// Test that new special keys uid, uuid, status, request_id are colored correctly
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)  
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	
+	colorizer := NewColorizer()
+	
+	tests := []struct {
+		name string
+		line string
+		description string
+	}{
+		{
+			name: "UID key handling",
+			line: "timestamp=2025-01-19T10:30:00Z level=info msg=\"User logged in\" uid=12345",
+			description: "uid should be styled with Service color",
+		},
+		{
+			name: "UUID key handling", 
+			line: "timestamp=2025-01-19T10:30:00Z level=info msg=\"Request processed\" uuid=f47ac10b-58cc-4372-a567-0e02b2c3d479",
+			description: "uuid should be styled with Service color",
+		},
+		{
+			name: "Status key handling",
+			line: "timestamp=2025-01-19T10:30:00Z level=info msg=\"HTTP request\" status=200",
+			description: "status should be styled with HTTP status color",
+		},
+		{
+			name: "Request ID key handling",
+			line: "timestamp=2025-01-19T10:30:00Z level=info msg=\"Processing request\" request_id=req-abc123",
+			description: "request_id should be styled with Service color", 
+		},
+		{
+			name: "All special keys together",
+			line: "timestamp=2025-01-19T10:30:00Z level=error msg=\"Request failed\" service=api uid=12345 uuid=f47ac10b-58cc-4372-a567-0e02b2c3d479 status=500 request_id=req-abc123",
+			description: "all special keys should be styled appropriately",
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := colorizer.ColorizeLog(tt.line, parser.LogfmtFormat)
+			
+			// Verify the result contains ANSI codes (styling applied)
+			if !strings.Contains(result, "[") {
+				t.Errorf("Expected ANSI color codes in result for %s, but none found", tt.description)
+			}
+			
+			// The result should be longer due to ANSI codes
+			if len(result) <= len(tt.line) {
+				t.Errorf("Expected colorized result to be longer than original line due to ANSI codes")
+			}
+		})
+	}
+}
