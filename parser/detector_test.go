@@ -242,7 +242,7 @@ func TestSpecificityOrdering(t *testing.T) {
 
 func TestLogfmtComplexQuotedValues(t *testing.T) {
 	parser := NewParser()
-	
+
 	// Test cases specifically for complex logfmt strings with quoted values containing spaces
 	complexLogfmtTests := []struct {
 		name     string
