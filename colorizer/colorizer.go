@@ -489,13 +489,13 @@ func (c *Colorizer) isServiceKey(key string) bool {
 
 func (c *Colorizer) isIdentifierKey(key string) bool {
 	lowerKey := strings.ToLower(key)
-	return lowerKey == "uid" || lowerKey == "uuid" || lowerKey == "user_id" || lowerKey == "userid" || 
+	return lowerKey == "uid" || lowerKey == "uuid" || lowerKey == "user_id" || lowerKey == "userid" ||
 		lowerKey == "request_id" || lowerKey == "requestid" || lowerKey == "req_id" || lowerKey == "reqid"
 }
 
 func (c *Colorizer) isStatusKey(key string) bool {
 	lowerKey := strings.ToLower(key)
-	return lowerKey == "status" || lowerKey == "status_code" || lowerKey == "statuscode" || 
+	return lowerKey == "status" || lowerKey == "status_code" || lowerKey == "statuscode" ||
 		lowerKey == "http_status" || lowerKey == "httpstatus"
 }
 
