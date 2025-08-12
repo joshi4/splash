@@ -150,7 +150,7 @@ func CheckForUpgradesOnExit() {
 
 	// Generate a random number between 0.0 and 1.0
 	// Only check for upgrades 1 out of 10 times (10% probability)
-	if rand.Float64() >= 0.1 {
+	if rand.Float64() >= 0.1 { //nolint:gosec // G404: Using math/rand for probabilistic upgrade checks, not for security
 		return // Skip upgrade check 90% of the time
 	}
 
