@@ -5,7 +5,7 @@ Splash adds beautiful, adaptive colors to make logs easier to read.
 
 ## Features
 
-- **Auto-detection** of 10+ popular log formats
+- **Auto-detection** of 14+ popular log formats including Java and Python stack traces
 - **Mixed formats** - handles multiple log formats in a single stream
 - **Search highlighting** with string or regex patterns
 - **Adaptive colors** that work with both light and dark terminals
@@ -14,7 +14,7 @@ Splash adds beautiful, adaptive colors to make logs easier to read.
 
 ## Screenshots
 
-Splash supports many standard log formats and output from popular languages like go(test logs) and java (exceptions)
+Splash supports many standard log formats and output from popular languages like go (test logs), java (exceptions), and python (tracebacks)
 <table>
   <tr>
     <td><img src="./screenshots/go_test.jpeg" alt="output of go test for splash repo" width="1280" height="2480"/></td>
@@ -135,6 +135,8 @@ Splash automatically detects and colorizes these log formats:
 | **Kubernetes** | `2025-01-19T10:30:00.123Z 1 main.go:42] ERROR Database connection failed` |
 | **Heroku** | `2025-01-19T10:30:00+00:00 app[web.1]: ERROR Database connection failed` |
 | **Go Test** | `=== RUN   TestDatabaseConnection` |
+| **Java Exception** | `Exception in thread "main" java.lang.ArithmeticException: / by zero` |
+| **Python Exception** | `Traceback (most recent call last):` |
 
 ## Build from Source
 
