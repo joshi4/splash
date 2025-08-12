@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 
@@ -146,6 +147,13 @@ func CheckForUpgradesOnExit() {
 	if os.Getenv("CI") == "1" || os.Getenv("CI") == "true" {
 		return // Skip upgrade checks in CI environments
 	}
+
+	// Generate a random number between 0.0 and 1.0
+	// Only check for upgrades 1 out of 10 times (10% probability)
+	if rand.Float64() >= 0.1 {
+		return // Skip upgrade check 90% of the time
+	}
+
 	// Reuse the upgrade logic but with silent error handling and interactive mode
 	if err := runUpgradeWithOptions(false, true); err != nil {
 		// Exit with error code on upgrade failure during interactive mode
