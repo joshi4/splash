@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"context"
 	"testing"
 )
 
@@ -148,7 +149,7 @@ func TestGoroutineStackTraceDetector(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := detector.Detect(nil, tc.line)
+			result := detector.Detect(context.TODO(), tc.line)
 			if result != tc.expected {
 				t.Errorf("Expected %v, got %v for line: %s", tc.expected, result, tc.line)
 			}
@@ -193,7 +194,7 @@ func TestGoroutineStackTraceDetectorContinuation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := detector.DetectContinuation(nil, tc.line)
+			result := detector.DetectContinuation(context.TODO(), tc.line)
 			if result != tc.expected {
 				t.Errorf("Expected %v, got %v for line: %s", tc.expected, result, tc.line)
 			}
@@ -243,7 +244,7 @@ func TestGoroutineStackTraceDetectorStart(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := detector.DetectStart(nil, tc.line)
+			result := detector.DetectStart(context.TODO(), tc.line)
 			if result != tc.expected {
 				t.Errorf("Expected %v, got %v for line: %s", tc.expected, result, tc.line)
 			}
@@ -272,7 +273,7 @@ func TestGoroutineStackTraceProperties(t *testing.T) {
 	}
 
 	// Test DetectEnd() method - should always return false for goroutine stack traces
-	if detector.DetectEnd(nil, "any line") {
+	if detector.DetectEnd(context.TODO(), "any line") {
 		t.Error("Expected DetectEnd to return false for all lines")
 	}
 }

@@ -1839,7 +1839,7 @@ func TestGoroutineStackTraceRegressionTests(t *testing.T) {
 	tests := []struct {
 		name     string
 		line     string
-		expected string // What we expect to be highlighted 
+		expected string // What we expect to be highlighted
 	}{
 		{
 			name:     "Function without parameters should be colored",
@@ -1882,7 +1882,7 @@ func TestGoroutineStackTraceRegressionTests(t *testing.T) {
 
 			// Test that result is longer (has ANSI codes)
 			if len(result) <= len(test.line) {
-				t.Errorf("Expected result to be longer due to ANSI codes.\nOriginal len: %d, Result len: %d", 
+				t.Errorf("Expected result to be longer due to ANSI codes.\nOriginal len: %d, Result len: %d",
 					len(test.line), len(result))
 			}
 		})

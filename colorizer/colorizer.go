@@ -1170,6 +1170,23 @@ func (c *Colorizer) colorizePythonException(line string) string {
 	return c.applySearchHighlighting(line, c.theme.JSONValue)
 }
 
+// formatFilePathMatch formats file path matches for stack traces with consistent styling
+func (c *Colorizer) formatFilePathMatch(matches []string) string {
+	result := strings.Builder{}
+	result.WriteString(matches[1]) // leading whitespace
+	// File path with prominent styling - bright cyan, bold (consistent with Java/Python)
+	fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
+	result.WriteString(c.applySearchHighlighting(matches[2], fileStyle)) // file path
+	result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))   // ":"
+	// Line number with prominent styling - bright magenta, bold (consistent with Java/Python)
+	lineStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC0066", Dark: "#FF66CC"}).Bold(true)
+	result.WriteString(c.applySearchHighlighting(matches[3], lineStyle)) // line number
+	if matches[4] != "" {
+		result.WriteString(c.applySearchHighlighting(matches[4], c.theme.JSONValue)) // offset (optional)
+	}
+	return result.String()
+}
+
 // colorizeGoroutineStackTrace colorizes Go goroutine stack traces with prominent file/line highlighting
 func (c *Colorizer) colorizeGoroutineStackTrace(line string) string {
 	// Handle goroutine header lines (goroutine 1 [running]:)
@@ -1194,19 +1211,7 @@ func (c *Colorizer) colorizeGoroutineStackTrace(line string) string {
 	filePathOnlyRegex := regexp.MustCompile(`^(\s+)([^\s:]+):(\d+)(.*)`)
 	matches = filePathOnlyRegex.FindStringSubmatch(line)
 	if len(matches) == 5 {
-		result := strings.Builder{}
-		result.WriteString(matches[1]) // leading whitespace
-		// File path with prominent styling - bright cyan, bold (consistent with Java/Python)
-		fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
-		result.WriteString(c.applySearchHighlighting(matches[2], fileStyle)) // file path
-		result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))   // ":"
-		// Line number with prominent styling - bright magenta, bold (consistent with Java/Python)
-		lineStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC0066", Dark: "#FF66CC"}).Bold(true)
-		result.WriteString(c.applySearchHighlighting(matches[3], lineStyle))       // line number
-		if matches[4] != "" {
-			result.WriteString(c.applySearchHighlighting(matches[4], c.theme.JSONValue)) // offset (optional)
-		}
-		return result.String()
+		return c.formatFilePathMatch(matches)
 	}
 
 	// Pattern 2: Function name followed by whitespace and file path (UNUSED - this pattern doesn't match real stack traces)
@@ -1214,24 +1219,24 @@ func (c *Colorizer) colorizeGoroutineStackTrace(line string) string {
 	//           /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/temp/main.go:9 +0x64
 	// This pattern is commented out because it doesn't occur in real Go stack traces
 	/*
-	stackTraceRegex := regexp.MustCompile(`^(\s+)([^/\s]+)(\s+)([^\s:]+):(\d+)\s+(.*)`)
-	matches = stackTraceRegex.FindStringSubmatch(line)
-	if len(matches) == 7 {
-		result := strings.Builder{}
-		result.WriteString(matches[1])                                             // leading whitespace
-		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Service)) // function name
-		result.WriteString(matches[3])                                             // whitespace
-		// File path with prominent styling - bright cyan, bold (consistent with Java/Python)
-		fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
-		result.WriteString(c.applySearchHighlighting(matches[4], fileStyle)) // file path
-		result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))   // ":"
-		// Line number with prominent styling - bright magenta, bold (consistent with Java/Python)
-		lineStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC0066", Dark: "#FF66CC"}).Bold(true)
-		result.WriteString(c.applySearchHighlighting(matches[5], lineStyle)) // line number
-		result.WriteString(" ")
-		result.WriteString(c.applySearchHighlighting(matches[6], c.theme.JSONValue)) // offset (+0x64)
-		return result.String()
-	}
+		stackTraceRegex := regexp.MustCompile(`^(\s+)([^/\s]+)(\s+)([^\s:]+):(\d+)\s+(.*)`)
+		matches = stackTraceRegex.FindStringSubmatch(line)
+		if len(matches) == 7 {
+			result := strings.Builder{}
+			result.WriteString(matches[1])                                             // leading whitespace
+			result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Service)) // function name
+			result.WriteString(matches[3])                                             // whitespace
+			// File path with prominent styling - bright cyan, bold (consistent with Java/Python)
+			fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
+			result.WriteString(c.applySearchHighlighting(matches[4], fileStyle)) // file path
+			result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))   // ":"
+			// Line number with prominent styling - bright magenta, bold (consistent with Java/Python)
+			lineStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC0066", Dark: "#FF66CC"}).Bold(true)
+			result.WriteString(c.applySearchHighlighting(matches[5], lineStyle)) // line number
+			result.WriteString(" ")
+			result.WriteString(c.applySearchHighlighting(matches[6], c.theme.JSONValue)) // offset (+0x64)
+			return result.String()
+		}
 	*/
 
 	// Handle function call lines with parameters
@@ -1256,19 +1261,7 @@ func (c *Colorizer) colorizeGoroutineStackTrace(line string) string {
 	filenameOnlyRegex := regexp.MustCompile(`^(\s*)([^\s:]*\.go):(\d+)(.*)`)
 	matches = filenameOnlyRegex.FindStringSubmatch(line)
 	if len(matches) == 5 {
-		result := strings.Builder{}
-		result.WriteString(matches[1]) // leading whitespace (optional)
-		// File path with prominent styling - bright cyan, bold (consistent with Java/Python)
-		fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
-		result.WriteString(c.applySearchHighlighting(matches[2], fileStyle)) // filename
-		result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))   // ":"
-		// Line number with prominent styling - bright magenta, bold (consistent with Java/Python)
-		lineStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC0066", Dark: "#FF66CC"}).Bold(true)
-		result.WriteString(c.applySearchHighlighting(matches[3], lineStyle))       // line number
-		if matches[4] != "" {
-			result.WriteString(c.applySearchHighlighting(matches[4], c.theme.JSONValue)) // offset (optional)
-		}
-		return result.String()
+		return c.formatFilePathMatch(matches)
 	}
 
 	// Pattern 4: Filepath fragments without line numbers (multiline stack traces)
