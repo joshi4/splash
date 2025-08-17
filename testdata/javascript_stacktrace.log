@@ -1,0 +1,45 @@
+Error
+    at sum (/home/dev/Documents/trace.js:2:17)
+    at start (/home/dev/Documents/trace.js:11:13)
+    at Object.<anonymous> (/home/dev/Documents/trace.js:16:1)
+    at Module._compile (internal/modules/cjs/loader.js:959:30)
+    at Object.Module._extensions..js (internal/modules/cjs/loader.js:995:10)
+    at Module.load (internal/modules/cjs/loader.js:815:32)
+    at Function.Module._load (internal/modules/cjs/loader.js:727:14)
+    at Function.Module.runMain (internal/modules/cjs/loader.js:1047:10)
+    at internal/main/run_main_module.js:17:11
+Error
+    at sum (/home/dev/Documents/trace.js:2:17)
+    at calc (/home/dev/Documents/trace.js:7:12)
+    at start (/home/dev/Documents/trace.js:12:13)
+    at Object.<anonymous> (/home/dev/Documents/trace.js:16:1)
+    at Module._compile (internal/modules/cjs/loader.js:959:30)
+    at Object.Module._extensions..js (internal/modules/cjs/loader.js:995:10)
+    at Module.load (internal/modules/cjs/loader.js:815:32)
+    at Function.Module._load (internal/modules/cjs/loader.js:727:14)
+    at Function.Module.runMain (internal/modules/cjs/loader.js:1047:10)
+    at internal/main/run_main_module.js:17:11
+
+Trace: add called with  2 and 3
+    at sum (/home/dev/Documents/stacktrace.js:2:13)
+    at start (/home/dev/Documents/stacktrace.js:11:13)
+    at Object.<anonymous> (/home/dev/Documents/stacktrace.js:16:1)
+    at Module._compile (internal/modules/cjs/loader.js:959:30)
+    at Object.Module._extensions..js (internal/modules/cjs/loader.js:995:10)
+    at Module.load (internal/modules/cjs/loader.js:815:32)
+    at Function.Module._load (internal/modules/cjs/loader.js:727:14)
+    at Function.Module.runMain (internal/modules/cjs/loader.js:1047:10)
+    at internal/main/run_main_module.js:17:11
+
+TypeError: Cannot read property 'foo' of undefined
+    at processData (/home/app/src/utils.js:45:12)
+    at handleRequest (/home/app/src/server.js:123:5)
+    at Server.<anonymous> (/home/app/src/server.js:89:3)
+    at emitTwo (events.js:126:13)
+    at Server.emit (events.js:214:7)
+
+ReferenceError: undefinedVariable is not defined
+    at calculateTotal (/home/app/src/calculator.js:15:20)
+    at Object.exports.processOrder (/home/app/src/orders.js:67:8)
+    at /home/app/src/app.js:42:10
+    at Layer.handle [as handle_request] (/home/app/node_modules/express/lib/router/layer.js:95:5)

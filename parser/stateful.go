@@ -267,3 +267,76 @@ func (d *StatefulGoroutineStackTraceDetector) Specificity() int {
 func (d *StatefulGoroutineStackTraceDetector) PatternLength() int {
 	return len(goroutineStartPattern) + len(goroutineStackTraceLinePattern)
 }
+
+// StatefulJavaScriptExceptionDetector handles multi-line JavaScript exception traces
+type StatefulJavaScriptExceptionDetector struct{}
+
+const jsExceptionStartPattern = `^(Error$|Trace:|TypeError:|ReferenceError:|SyntaxError:|RangeError:|EvalError:|URIError:|InternalError:|[A-Z][a-zA-Z]*Exception:)`
+const jsStackTraceLinePattern = `^\s+at\s+`
+
+var jsExceptionStartRegex = regexp.MustCompile(jsExceptionStartPattern)
+var jsStackTraceLineRegex = regexp.MustCompile(jsStackTraceLinePattern)
+
+func (d *StatefulJavaScriptExceptionDetector) DetectStart(ctx context.Context, line string) bool {
+	done := make(chan bool, 1)
+	go func() {
+		done <- jsExceptionStartRegex.MatchString(line)
+	}()
+
+	if ctx != nil {
+		select {
+		case result := <-done:
+			return result
+		case <-ctx.Done():
+			return false
+		}
+	} else {
+		// Handle nil context case
+		return <-done
+	}
+}
+
+func (d *StatefulJavaScriptExceptionDetector) DetectContinuation(_ context.Context, line string) bool {
+	// JavaScript stack trace lines start with whitespace followed by "at"
+	return jsStackTraceLineRegex.MatchString(line)
+}
+
+func (d *StatefulJavaScriptExceptionDetector) DetectEnd(_ context.Context, _ string) bool {
+	// JavaScript exceptions don't have explicit end markers
+	// They end when we encounter a non-continuation line
+	return false
+}
+
+func (d *StatefulJavaScriptExceptionDetector) Detect(ctx context.Context, line string) bool {
+	// Match exception headers OR stack trace lines for backward compatibility
+	done := make(chan bool, 1)
+	go func() {
+		isStart := jsExceptionStartRegex.MatchString(line)
+		isStackTrace := jsStackTraceLineRegex.MatchString(line)
+		done <- isStart || isStackTrace
+	}()
+
+	if ctx != nil {
+		select {
+		case result := <-done:
+			return result
+		case <-ctx.Done():
+			return false
+		}
+	} else {
+		// Handle nil context case
+		return <-done
+	}
+}
+
+func (d *StatefulJavaScriptExceptionDetector) Format() LogFormat {
+	return JavaScriptExceptionFormat
+}
+
+func (d *StatefulJavaScriptExceptionDetector) Specificity() int {
+	return 70 // Higher than standard regex-based formats, same as other exception formats
+}
+
+func (d *StatefulJavaScriptExceptionDetector) PatternLength() int {
+	return len(jsExceptionStartPattern) + len(jsStackTraceLinePattern)
+}

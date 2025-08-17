@@ -178,6 +178,8 @@ func (c *Colorizer) ColorizeLog(line string, format parser.LogFormat) string {
 		result = c.colorizeJavaException(line)
 	case parser.PythonExceptionFormat:
 		result = c.colorizePythonException(line)
+	case parser.JavaScriptExceptionFormat:
+		result = c.colorizeJavaScriptException(line)
 	case parser.GoroutineStackTraceFormat:
 		result = c.colorizeGoroutineStackTrace(line)
 	default:
@@ -1229,6 +1231,88 @@ func (c *Colorizer) colorizeGoroutineStackTrace(line string) string {
 	// Handle runtime function lines (runtime.forcegchelper(), etc.)
 	if strings.Contains(line, "runtime.") {
 		return c.applySearchHighlighting(line, c.theme.Service)
+	}
+
+	// Handle continuation lines or indented lines with whitespace
+	if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
+		return c.applySearchHighlighting(line, c.theme.JSONValue)
+	}
+
+	// Fallback for any unmatched lines
+	return c.applySearchHighlighting(line, c.theme.JSONValue)
+}
+
+// colorizeJavaScriptException colorizes JavaScript exception traces with prominent file/line highlighting
+func (c *Colorizer) colorizeJavaScriptException(line string) string {
+	// Handle exception header lines (Error, TypeError:, Trace:, etc.)
+	exceptionHeaderRegex := regexp.MustCompile(`^(Error$|Trace:.*|TypeError:.*|ReferenceError:.*|SyntaxError:.*|RangeError:.*|EvalError:.*|URIError:.*|InternalError:.*|[A-Z][a-zA-Z]*Exception:.*)`)
+	matches := exceptionHeaderRegex.FindStringSubmatch(line)
+	if len(matches) >= 2 {
+		result := strings.Builder{}
+		// Split the match to handle the error type and message separately
+		parts := strings.SplitN(matches[1], ":", 2)
+		if len(parts) >= 2 {
+			// Error type with message
+			result.WriteString(c.applySearchHighlighting(parts[0]+":", c.theme.StatusError.Bold(true)))
+			if len(parts[1]) > 0 {
+				result.WriteString(c.applySearchHighlighting(parts[1], c.theme.JSONString)) // error message
+			}
+		} else {
+			// Simple "Error" or "Trace:" without message
+			result.WriteString(c.applySearchHighlighting(matches[1], c.theme.StatusError.Bold(true)))
+		}
+		return result.String()
+	}
+
+	// Handle stack trace lines (    at sum (/home/dev/Documents/trace.js:2:17))
+	stackTraceRegex := regexp.MustCompile(`^(\s+at\s+)([^(]*)\s*(\()([^:)]+):(\d+):(\d+)(\))(.*)`)
+	matches = stackTraceRegex.FindStringSubmatch(line)
+	if len(matches) == 9 {
+		result := strings.Builder{}
+		result.WriteString(c.applySearchHighlighting(matches[1], c.theme.Bracket)) // "    at "
+		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Service)) // function name
+		result.WriteString(c.applySearchHighlighting(matches[3], c.theme.Bracket)) // " ("
+		// File path with prominent styling - bright cyan, bold (consistent with other stack traces)
+		fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
+		result.WriteString(c.applySearchHighlighting(matches[4], fileStyle)) // file path
+		result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))   // ":"
+		// Line number with prominent styling - bright magenta, bold (consistent with other stack traces)
+		lineStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC0066", Dark: "#FF66CC"}).Bold(true)
+		result.WriteString(c.applySearchHighlighting(matches[5], lineStyle)) // line number
+		result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))   // ":"
+		// Column number with line number styling
+		result.WriteString(c.applySearchHighlighting(matches[6], lineStyle))       // column number
+		result.WriteString(c.applySearchHighlighting(matches[7], c.theme.Bracket)) // ")"
+		if matches[8] != "" {
+			result.WriteString(c.applySearchHighlighting(matches[8], c.theme.JSONValue)) // any trailing text
+		}
+		return result.String()
+	}
+
+	// Handle stack trace lines without file info (    at internal/main/run_main_module.js:17:11)
+	simpleStackRegex := regexp.MustCompile(`^(\s+at\s+)(.*)`)
+	matches = simpleStackRegex.FindStringSubmatch(line)
+	if len(matches) == 3 {
+		result := strings.Builder{}
+		result.WriteString(c.applySearchHighlighting(matches[1], c.theme.Bracket)) // "    at "
+
+		// Try to extract file path and line info from the rest
+		fileInfoRegex := regexp.MustCompile(`^([^:]+):(\d+):(\d+)$`)
+		fileMatches := fileInfoRegex.FindStringSubmatch(matches[2])
+		if len(fileMatches) == 4 {
+			// File path with line:column
+			fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
+			result.WriteString(c.applySearchHighlighting(fileMatches[1], fileStyle)) // file path
+			result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))       // ":"
+			lineStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC0066", Dark: "#FF66CC"}).Bold(true)
+			result.WriteString(c.applySearchHighlighting(fileMatches[2], lineStyle)) // line number
+			result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))       // ":"
+			result.WriteString(c.applySearchHighlighting(fileMatches[3], lineStyle)) // column number
+		} else {
+			// Generic function/location info
+			result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Service))
+		}
+		return result.String()
 	}
 
 	// Handle continuation lines or indented lines with whitespace
