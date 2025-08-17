@@ -45,8 +45,8 @@ func TestDetectionWithTestData(t *testing.T) {
 			correctDetections := 0
 
 			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
-				if line == "" {
+				line := scanner.Text()
+				if strings.TrimSpace(line) == "" {
 					continue // Skip empty lines
 				}
 
@@ -110,8 +110,8 @@ func TestMixedFormatFile(t *testing.T) {
 	lineIndex := 0
 
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
+		line := scanner.Text()
+		if strings.TrimSpace(line) == "" {
 			continue
 		}
 
