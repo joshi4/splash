@@ -1826,3 +1826,65 @@ func TestLogfmtSpecialKeys(t *testing.T) {
 		})
 	}
 }
+
+func TestGoroutineStackTraceRegressionTests(t *testing.T) {
+	// These tests prevent regression of specific issues we fixed
+
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)
+	lipgloss.SetColorProfile(termenv.TrueColor)
+
+	colorizer := NewColorizer()
+
+	tests := []struct {
+		name     string
+		line     string
+		expected string // What we expect to be highlighted 
+	}{
+		{
+			name:     "Function without parameters should be colored",
+			line:     "main.main()",
+			expected: "function_name",
+		},
+		{
+			name:     "Full filepath without trailing text should be colored",
+			line:     "        /Users/bill/go/src/runtime/proc.go:90",
+			expected: "filepath_and_line",
+		},
+		{
+			name:     "Relative filepath should be colored",
+			line:     "temp/main.go:9 +0x64",
+			expected: "filepath_and_line",
+		},
+		{
+			name:     "Directory fragment should be colored",
+			line:     "        /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/",
+			expected: "filepath",
+		},
+	}
+
+	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := colorizer.colorizeGoroutineStackTrace(test.line)
+
+			// Test that colorization was applied
+			if !ansiRegex.MatchString(result) {
+				t.Errorf("Expected colorization for line: %s\nGot uncolored result: %s", test.line, result)
+			}
+
+			// Test that content is preserved
+			strippedResult := ansiRegex.ReplaceAllString(result, "")
+			if strippedResult != test.line {
+				t.Errorf("Content not preserved.\nOriginal: %s\nStripped: %s", test.line, strippedResult)
+			}
+
+			// Test that result is longer (has ANSI codes)
+			if len(result) <= len(test.line) {
+				t.Errorf("Expected result to be longer due to ANSI codes.\nOriginal len: %d, Result len: %d", 
+					len(test.line), len(result))
+			}
+		})
+	}
+}

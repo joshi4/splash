@@ -1188,10 +1188,32 @@ func (c *Colorizer) colorizeGoroutineStackTrace(line string) string {
 		return result.String()
 	}
 
-	// Handle stack trace lines with file paths
-	// Examples:
-	// main.Example(0x2080c3f50, 0x2, 0x4, 0x425c0, 0x5, 0xa)
-	//     /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/temp/main.go:9 +0x64
+	// Pattern 1: Lines starting directly with whitespace and file path
+	// Examples:         /Users/bill/go/src/runtime/asm_amd64.s:2232 +0x1
+	//          OR:      /Users/bill/go/src/runtime/proc.go:90
+	filePathOnlyRegex := regexp.MustCompile(`^(\s+)([^\s:]+):(\d+)(.*)`)
+	matches = filePathOnlyRegex.FindStringSubmatch(line)
+	if len(matches) == 5 {
+		result := strings.Builder{}
+		result.WriteString(matches[1]) // leading whitespace
+		// File path with prominent styling - bright cyan, bold (consistent with Java/Python)
+		fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
+		result.WriteString(c.applySearchHighlighting(matches[2], fileStyle)) // file path
+		result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))   // ":"
+		// Line number with prominent styling - bright magenta, bold (consistent with Java/Python)
+		lineStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC0066", Dark: "#FF66CC"}).Bold(true)
+		result.WriteString(c.applySearchHighlighting(matches[3], lineStyle))       // line number
+		if matches[4] != "" {
+			result.WriteString(c.applySearchHighlighting(matches[4], c.theme.JSONValue)) // offset (optional)
+		}
+		return result.String()
+	}
+
+	// Pattern 2: Function name followed by whitespace and file path (UNUSED - this pattern doesn't match real stack traces)
+	// Examples: main.Example(0x2080c3f50, 0x2, 0x4, 0x425c0, 0x5, 0xa)
+	//           /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/temp/main.go:9 +0x64
+	// This pattern is commented out because it doesn't occur in real Go stack traces
+	/*
 	stackTraceRegex := regexp.MustCompile(`^(\s+)([^/\s]+)(\s+)([^\s:]+):(\d+)\s+(.*)`)
 	matches = stackTraceRegex.FindStringSubmatch(line)
 	if len(matches) == 7 {
@@ -1210,21 +1232,55 @@ func (c *Colorizer) colorizeGoroutineStackTrace(line string) string {
 		result.WriteString(c.applySearchHighlighting(matches[6], c.theme.JSONValue)) // offset (+0x64)
 		return result.String()
 	}
+	*/
 
 	// Handle function call lines with parameters
-	// Examples: main.Example(0x2080c3f50, 0x2, 0x4, 0x425c0, 0x5, 0xa)
-	functionCallRegex := regexp.MustCompile(`^(\s+)([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)(\()([^)]+)(\))(.*)`)
+	// Examples: main.Example(0x2080c3f50, 0x2, 0x4, 0x425c0, 0x5, 0xa) or main.main()
+	functionCallRegex := regexp.MustCompile(`^(\s*)([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)(\()([^)]*)(\))(.*)`)
 	matches = functionCallRegex.FindStringSubmatch(line)
 	if len(matches) == 7 {
 		result := strings.Builder{}
-		result.WriteString(matches[1])                                               // leading whitespace
+		result.WriteString(matches[1])                                               // leading whitespace (optional)
 		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Service))   // function name (main.Example)
 		result.WriteString(c.applySearchHighlighting(matches[3], c.theme.Bracket))   // "("
-		result.WriteString(c.applySearchHighlighting(matches[4], c.theme.JSONValue)) // parameters
+		result.WriteString(c.applySearchHighlighting(matches[4], c.theme.JSONValue)) // parameters (can be empty)
 		result.WriteString(c.applySearchHighlighting(matches[5], c.theme.Bracket))   // ")"
 		if matches[6] != "" {
 			result.WriteString(c.applySearchHighlighting(matches[6], c.theme.JSONValue))
 		}
+		return result.String()
+	}
+
+	// Pattern 3: Filename patterns that may not have full paths
+	// Examples: temp/main.go:9 +0x64 OR main.go:42
+	filenameOnlyRegex := regexp.MustCompile(`^(\s*)([^\s:]*\.go):(\d+)(.*)`)
+	matches = filenameOnlyRegex.FindStringSubmatch(line)
+	if len(matches) == 5 {
+		result := strings.Builder{}
+		result.WriteString(matches[1]) // leading whitespace (optional)
+		// File path with prominent styling - bright cyan, bold (consistent with Java/Python)
+		fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
+		result.WriteString(c.applySearchHighlighting(matches[2], fileStyle)) // filename
+		result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))   // ":"
+		// Line number with prominent styling - bright magenta, bold (consistent with Java/Python)
+		lineStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC0066", Dark: "#FF66CC"}).Bold(true)
+		result.WriteString(c.applySearchHighlighting(matches[3], lineStyle))       // line number
+		if matches[4] != "" {
+			result.WriteString(c.applySearchHighlighting(matches[4], c.theme.JSONValue)) // offset (optional)
+		}
+		return result.String()
+	}
+
+	// Pattern 4: Filepath fragments without line numbers (multiline stack traces)
+	// Examples:         /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/
+	filepathFragmentRegex := regexp.MustCompile(`^(\s+)(/[^\s]*/)$`)
+	matches = filepathFragmentRegex.FindStringSubmatch(line)
+	if len(matches) == 3 {
+		result := strings.Builder{}
+		result.WriteString(matches[1]) // leading whitespace
+		// File path with prominent styling - bright cyan, bold (consistent with Java/Python)
+		fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
+		result.WriteString(c.applySearchHighlighting(matches[2], fileStyle)) // filepath fragment
 		return result.String()
 	}
 
