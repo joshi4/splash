@@ -194,3 +194,76 @@ func (d *StatefulPythonExceptionDetector) Specificity() int {
 func (d *StatefulPythonExceptionDetector) PatternLength() int {
 	return len(pythonExceptionStartPattern) + len(pythonExceptionLinePattern)
 }
+
+// StatefulGoroutineStackTraceDetector handles multi-line Go goroutine stack traces
+type StatefulGoroutineStackTraceDetector struct{}
+
+const goroutineStartPattern = `^goroutine \d+ \[.*\]:`
+const goroutineStackTraceLinePattern = `^(\s+[a-zA-Z_][a-zA-Z0-9_]*\.|[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_]|\s+/)`
+
+var goroutineStartRegex = regexp.MustCompile(goroutineStartPattern)
+var goroutineStackTraceLineRegex = regexp.MustCompile(goroutineStackTraceLinePattern)
+
+func (d *StatefulGoroutineStackTraceDetector) DetectStart(ctx context.Context, line string) bool {
+	done := make(chan bool, 1)
+	go func() {
+		done <- goroutineStartRegex.MatchString(line)
+	}()
+
+	if ctx != nil {
+		select {
+		case result := <-done:
+			return result
+		case <-ctx.Done():
+			return false
+		}
+	} else {
+		// Handle nil context case
+		return <-done
+	}
+}
+
+func (d *StatefulGoroutineStackTraceDetector) DetectContinuation(_ context.Context, line string) bool {
+	// Goroutine stack trace lines start with whitespace
+	return len(line) > 0 && (line[0] == ' ' || line[0] == '\t')
+}
+
+func (d *StatefulGoroutineStackTraceDetector) DetectEnd(_ context.Context, _ string) bool {
+	// Goroutine stack traces don't have explicit end markers
+	// They end when we encounter a non-continuation line
+	return false
+}
+
+func (d *StatefulGoroutineStackTraceDetector) Detect(ctx context.Context, line string) bool {
+	// Match goroutine headers OR stack trace lines for backward compatibility
+	done := make(chan bool, 1)
+	go func() {
+		isStart := goroutineStartRegex.MatchString(line)
+		isStackTrace := goroutineStackTraceLineRegex.MatchString(line)
+		done <- isStart || isStackTrace
+	}()
+
+	if ctx != nil {
+		select {
+		case result := <-done:
+			return result
+		case <-ctx.Done():
+			return false
+		}
+	} else {
+		// Handle nil context case
+		return <-done
+	}
+}
+
+func (d *StatefulGoroutineStackTraceDetector) Format() LogFormat {
+	return GoroutineStackTraceFormat
+}
+
+func (d *StatefulGoroutineStackTraceDetector) Specificity() int {
+	return 70 // Higher than standard regex-based formats, same as GoTest and others
+}
+
+func (d *StatefulGoroutineStackTraceDetector) PatternLength() int {
+	return len(goroutineStartPattern) + len(goroutineStackTraceLinePattern)
+}
