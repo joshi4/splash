@@ -178,6 +178,8 @@ func (c *Colorizer) ColorizeLog(line string, format parser.LogFormat) string {
 		result = c.colorizeJavaException(line)
 	case parser.PythonExceptionFormat:
 		result = c.colorizePythonException(line)
+	case parser.GoroutineStackTraceFormat:
+		result = c.colorizeGoroutineStackTrace(line)
 	default:
 		result = c.colorizeGenericLog(line)
 	}
@@ -1159,6 +1161,78 @@ func (c *Colorizer) colorizePythonException(line string) string {
 	// Handle code lines with leading whitespace (    function_a())
 	if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
 		// Simple approach: highlight the whole line as code
+		return c.applySearchHighlighting(line, c.theme.JSONValue)
+	}
+
+	// Fallback for any unmatched lines
+	return c.applySearchHighlighting(line, c.theme.JSONValue)
+}
+
+// colorizeGoroutineStackTrace colorizes Go goroutine stack traces with prominent file/line highlighting
+func (c *Colorizer) colorizeGoroutineStackTrace(line string) string {
+	// Handle goroutine header lines (goroutine 1 [running]:)
+	goroutineHeaderRegex := regexp.MustCompile(`^(goroutine\s+)(\d+)(\s+\[)([^\]]+)(\]:\s*)(.*)`)
+	matches := goroutineHeaderRegex.FindStringSubmatch(line)
+	if len(matches) == 7 {
+		result := strings.Builder{}
+		result.WriteString(c.applySearchHighlighting(matches[1], c.theme.Info.Bold(true)))       // "goroutine "
+		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Service.Bold(true)))    // goroutine number
+		result.WriteString(c.applySearchHighlighting(matches[3], c.theme.Bracket))               // " ["
+		result.WriteString(c.applySearchHighlighting(matches[4], c.theme.StatusWarn.Bold(true))) // status (running/runnable)
+		result.WriteString(c.applySearchHighlighting(matches[5], c.theme.Bracket))               // "]:"
+		if matches[6] != "" {
+			result.WriteString(c.applySearchHighlighting(matches[6], c.theme.JSONValue))
+		}
+		return result.String()
+	}
+
+	// Handle stack trace lines with file paths
+	// Examples:
+	// main.Example(0x2080c3f50, 0x2, 0x4, 0x425c0, 0x5, 0xa)
+	//     /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/temp/main.go:9 +0x64
+	stackTraceRegex := regexp.MustCompile(`^(\s+)([^/\s]+)(\s+)([^\s:]+):(\d+)\s+(.*)`)
+	matches = stackTraceRegex.FindStringSubmatch(line)
+	if len(matches) == 7 {
+		result := strings.Builder{}
+		result.WriteString(matches[1])                                             // leading whitespace
+		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Service)) // function name
+		result.WriteString(matches[3])                                             // whitespace
+		// File path with prominent styling - bright cyan, bold (consistent with Java/Python)
+		fileStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#66CCFF"}).Bold(true)
+		result.WriteString(c.applySearchHighlighting(matches[4], fileStyle)) // file path
+		result.WriteString(c.applySearchHighlighting(":", c.theme.Equals))   // ":"
+		// Line number with prominent styling - bright magenta, bold (consistent with Java/Python)
+		lineStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC0066", Dark: "#FF66CC"}).Bold(true)
+		result.WriteString(c.applySearchHighlighting(matches[5], lineStyle)) // line number
+		result.WriteString(" ")
+		result.WriteString(c.applySearchHighlighting(matches[6], c.theme.JSONValue)) // offset (+0x64)
+		return result.String()
+	}
+
+	// Handle function call lines with parameters
+	// Examples: main.Example(0x2080c3f50, 0x2, 0x4, 0x425c0, 0x5, 0xa)
+	functionCallRegex := regexp.MustCompile(`^(\s+)([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)(\()([^)]+)(\))(.*)`)
+	matches = functionCallRegex.FindStringSubmatch(line)
+	if len(matches) == 7 {
+		result := strings.Builder{}
+		result.WriteString(matches[1])                                               // leading whitespace
+		result.WriteString(c.applySearchHighlighting(matches[2], c.theme.Service))   // function name (main.Example)
+		result.WriteString(c.applySearchHighlighting(matches[3], c.theme.Bracket))   // "("
+		result.WriteString(c.applySearchHighlighting(matches[4], c.theme.JSONValue)) // parameters
+		result.WriteString(c.applySearchHighlighting(matches[5], c.theme.Bracket))   // ")"
+		if matches[6] != "" {
+			result.WriteString(c.applySearchHighlighting(matches[6], c.theme.JSONValue))
+		}
+		return result.String()
+	}
+
+	// Handle runtime function lines (runtime.forcegchelper(), etc.)
+	if strings.Contains(line, "runtime.") {
+		return c.applySearchHighlighting(line, c.theme.Service)
+	}
+
+	// Handle continuation lines or indented lines with whitespace
+	if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
 		return c.applySearchHighlighting(line, c.theme.JSONValue)
 	}
 

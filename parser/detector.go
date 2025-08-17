@@ -41,10 +41,11 @@ func NewParser() *Parser {
 		detectors: []FormatDetector{
 			&JSONDetector{},
 			&LogfmtDetector{},
-			&StatefulJavaExceptionDetector{},   // High priority for Java exception headers
-			&StatefulPythonExceptionDetector{}, // High priority for Python traceback headers
-			&GoTestDetector{},                  // High priority for specific go test patterns
-			&KubernetesDetector{},              // Must be before DockerDetector
+			&StatefulJavaExceptionDetector{},       // High priority for Java exception headers
+			&StatefulPythonExceptionDetector{},     // High priority for Python traceback headers
+			&StatefulGoroutineStackTraceDetector{}, // High priority for Go stack trace headers
+			&GoTestDetector{},                      // High priority for specific go test patterns
+			&KubernetesDetector{},                  // Must be before DockerDetector
 			&HerokuDetector{},
 			&StatefulRsyslogDetector{}, // Before generic Syslog to be more specific
 			&NginxDetector{},           // Must be before ApacheCommonDetector

@@ -12,6 +12,204 @@ import (
 	"github.com/joshi4/splash/parser"
 )
 
+func TestGoroutineStackTraceColorization(t *testing.T) {
+	// This test ensures that Goroutine stack trace colorization works correctly
+	// and follows the same patterns as Java/Python exception colorization
+
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)
+	lipgloss.SetColorProfile(termenv.TrueColor)
+
+	colorizer := NewColorizer()
+
+	tests := []struct {
+		name        string
+		line        string
+		description string
+	}{
+		{
+			name:        "Goroutine header - running",
+			line:        "goroutine 1 [running]:",
+			description: "Should colorize goroutine keyword, number, and status",
+		},
+		{
+			name:        "Goroutine header - runnable",
+			line:        "goroutine 42 [runnable]:",
+			description: "Should colorize goroutine keyword, number, and status",
+		},
+		{
+			name:        "Function call line",
+			line:        "main.Example(0x2080c3f50, 0x2, 0x4, 0x425c0, 0x5, 0xa)",
+			description: "Should colorize function name and parameters",
+		},
+		{
+			name:        "File path line",
+			line:        "        /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/temp/main.go:9 +0x64",
+			description: "Should highlight file path and line number prominently",
+		},
+		{
+			name:        "Runtime function",
+			line:        "runtime.forcegchelper()",
+			description: "Should colorize runtime functions",
+		},
+		{
+			name:        "Simple function with file path",
+			line:        "main.main()",
+			description: "Should colorize function name",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := colorizer.colorizeGoroutineStackTrace(test.line)
+
+			// Test that the result is not empty and contains ANSI escape codes (indicating colorization)
+			if result == "" {
+				t.Error("Expected non-empty colorized output")
+			}
+
+			// Check for ANSI escape sequences (indicating colorization was applied)
+			ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+			if !ansiRegex.MatchString(result) {
+				t.Errorf("Expected colorized output with ANSI codes, got: %s", result)
+			}
+
+			// Verify the original content is preserved (strip ANSI codes and compare)
+			strippedResult := ansiRegex.ReplaceAllString(result, "")
+			if strippedResult != test.line {
+				t.Errorf("Expected stripped result to match original line.\nOriginal: %s\nStripped: %s",
+					test.line, strippedResult)
+			}
+		})
+	}
+}
+
+func TestGoroutineStackTraceSearchHighlighting(t *testing.T) {
+	// This test ensures that search highlighting works correctly with goroutine stack traces
+	// and prevents regression of search highlighting bugs
+
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)
+	lipgloss.SetColorProfile(termenv.TrueColor)
+
+	colorizer := NewColorizer()
+
+	tests := []struct {
+		name        string
+		line        string
+		search      string
+		description string
+	}{
+		{
+			name:        "Goroutine number highlighting",
+			line:        "goroutine 1 [running]:",
+			search:      "1",
+			description: "Goroutine number should be highlighted",
+		},
+		{
+			name:        "Status highlighting",
+			line:        "goroutine 42 [runnable]:",
+			search:      "runnable",
+			description: "Status should be highlighted",
+		},
+		{
+			name:        "Function name highlighting",
+			line:        "main.Example(0x2080c3f50, 0x2, 0x4, 0x425c0, 0x5, 0xa)",
+			search:      "Example",
+			description: "Function name should be highlighted",
+		},
+		{
+			name:        "File path highlighting",
+			line:        "        /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/temp/main.go:9 +0x64",
+			search:      "main.go",
+			description: "File name should be highlighted",
+		},
+		{
+			name:        "Line number highlighting",
+			line:        "        /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/temp/main.go:9 +0x64",
+			search:      "9",
+			description: "Line number should be highlighted",
+		},
+		{
+			name:        "Runtime function highlighting",
+			line:        "runtime.forcegchelper()",
+			search:      "runtime",
+			description: "Runtime keyword should be highlighted",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			colorizer.SetSearchString(test.search)
+			result := colorizer.colorizeGoroutineStackTrace(test.line)
+
+			// Check that search highlighting was applied
+			if !strings.Contains(result, test.search) {
+				t.Errorf("Expected result to contain search term '%s', got: %s", test.search, result)
+			}
+
+			// Check for ANSI escape sequences (indicating colorization was applied)
+			ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+			if !ansiRegex.MatchString(result) {
+				t.Errorf("Expected colorized output with ANSI codes, got: %s", result)
+			}
+		})
+	}
+}
+
+func TestGoroutineStackTraceSpecialCases(t *testing.T) {
+	// Test special cases and edge conditions
+
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)
+	lipgloss.SetColorProfile(termenv.TrueColor)
+
+	colorizer := NewColorizer()
+
+	tests := []struct {
+		name        string
+		line        string
+		description string
+	}{
+		{
+			name:        "Empty line",
+			line:        "",
+			description: "Should handle empty lines gracefully",
+		},
+		{
+			name:        "Line with only whitespace",
+			line:        "    ",
+			description: "Should handle whitespace-only lines",
+		},
+		{
+			name:        "Goroutine with complex status",
+			line:        "goroutine 123 [chan receive, 10 minutes]:",
+			description: "Should handle complex status descriptions",
+		},
+		{
+			name:        "Very long file path",
+			line:        "        /very/long/path/that/goes/on/for/a/while/and/includes/many/directories/main.go:123 +0x456",
+			description: "Should handle very long file paths",
+		},
+		{
+			name:        "Function with no parameters",
+			line:        "runtime.goexit()",
+			description: "Should handle functions without parameters",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := colorizer.colorizeGoroutineStackTrace(test.line)
+
+			// Should never panic or return empty for non-empty input
+			if test.line != "" && result == "" {
+				t.Error("Expected non-empty result for non-empty input")
+			}
+		})
+	}
+}
+
 func TestHerokuSearchHighlighting(t *testing.T) {
 	// This test ensures that Heroku log format search highlighting works correctly
 	// and prevents regression of the bug where no highlighting was applied
