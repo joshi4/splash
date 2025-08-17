@@ -21,6 +21,9 @@ const (
 // For development, we use a placeholder version
 var version = "v0.1.0-dev"
 
+// Allow disabling built-in updater at compile time
+var externalUpdate string
+
 // upgradeCmd represents the upgrade command
 var upgradeCmd = &cobra.Command{
 	Use:   "upgrade",
@@ -144,7 +147,7 @@ func runUpgradeWithOptions(verbose, interactive bool) error {
 // CheckForUpgradesOnExit checks for available upgrades and prompts the user
 // This is called when splash is about to exit
 func CheckForUpgradesOnExit() {
-	if os.Getenv("CI") == "1" || os.Getenv("CI") == "true" {
+	if os.Getenv("CI") == "1" || os.Getenv("CI") == "true" || externalUpdate != "" {
 		return // Skip upgrade checks in CI environments
 	}
 
@@ -162,5 +165,7 @@ func CheckForUpgradesOnExit() {
 }
 
 func init() {
-	rootCmd.AddCommand(upgradeCmd)
+	if externalUpdate == "" {
+		rootCmd.AddCommand(upgradeCmd)
+	}
 }
