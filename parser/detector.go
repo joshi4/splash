@@ -42,6 +42,7 @@ func NewParser() *Parser {
 			&JSONDetector{},
 			&LogfmtDetector{},
 			&StatefulJavaExceptionDetector{},       // High priority for Java exception headers
+			&StatefulJavaScriptExceptionDetector{}, // High priority for JavaScript exception headers
 			&StatefulPythonExceptionDetector{},     // High priority for Python traceback headers
 			&StatefulGoroutineStackTraceDetector{}, // High priority for Go stack trace headers
 			&GoTestDetector{},                      // High priority for specific go test patterns

@@ -22,6 +22,7 @@ const (
 	GoTestFormat
 	JavaExceptionFormat
 	PythonExceptionFormat
+	JavaScriptExceptionFormat
 	GoroutineStackTraceFormat
 )
 
@@ -56,6 +57,8 @@ func (f LogFormat) String() string {
 		return "Java Exception"
 	case PythonExceptionFormat:
 		return "Python Exception"
+	case JavaScriptExceptionFormat:
+		return "JavaScript Exception"
 	case GoroutineStackTraceFormat:
 		return "Goroutine Stack Trace"
 	default:

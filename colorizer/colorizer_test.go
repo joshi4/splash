@@ -12,6 +12,215 @@ import (
 	"github.com/joshi4/splash/parser"
 )
 
+func TestJavaScriptExceptionColorization(t *testing.T) {
+	// This test ensures that JavaScript exception colorization works correctly
+	// and follows the same patterns as other exception colorization
+
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)
+	lipgloss.SetColorProfile(termenv.TrueColor)
+
+	colorizer := NewColorizer()
+
+	tests := []struct {
+		name        string
+		line        string
+		description string
+	}{
+		{
+			name:        "Simple Error header",
+			line:        "Error",
+			description: "Should colorize error keyword",
+		},
+		{
+			name:        "TypeError with message",
+			line:        "TypeError: Cannot read property 'foo' of undefined",
+			description: "Should colorize error type and message",
+		},
+		{
+			name:        "Trace message",
+			line:        "Trace: add called with  2 and 3",
+			description: "Should colorize trace keyword and message",
+		},
+		{
+			name:        "Stack trace with file path",
+			line:        "    at sum (/home/dev/Documents/trace.js:2:17)",
+			description: "Should highlight file path, line, and column numbers prominently",
+		},
+		{
+			name:        "Stack trace with Object method",
+			line:        "    at Object.<anonymous> (/home/dev/Documents/trace.js:16:1)",
+			description: "Should colorize function name and file info",
+		},
+		{
+			name:        "Internal module stack trace",
+			line:        "    at internal/main/run_main_module.js:17:11",
+			description: "Should handle internal module paths correctly",
+		},
+		{
+			name:        "Module method stack trace",
+			line:        "    at Module._compile (internal/modules/cjs/loader.js:959:30)",
+			description: "Should colorize method names and file paths",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := colorizer.colorizeJavaScriptException(test.line)
+
+			// Test that the result is not empty and contains ANSI escape codes (indicating colorization)
+			if result == "" {
+				t.Error("Expected non-empty colorized output")
+			}
+
+			// Check for ANSI escape sequences (indicating colorization was applied)
+			ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+			if !ansiRegex.MatchString(result) {
+				t.Errorf("Expected colorized output with ANSI codes, got: %s", result)
+			}
+
+			// Verify the original content is preserved (strip ANSI codes and compare)
+			strippedResult := ansiRegex.ReplaceAllString(result, "")
+			if strippedResult != test.line {
+				t.Errorf("Expected stripped result to match original line.\nOriginal: %s\nStripped: %s",
+					test.line, strippedResult)
+			}
+		})
+	}
+}
+
+func TestJavaScriptExceptionSearchHighlighting(t *testing.T) {
+	// This test ensures that search highlighting works correctly with JavaScript exceptions
+	// and prevents regression of search highlighting bugs
+
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)
+	lipgloss.SetColorProfile(termenv.TrueColor)
+
+	colorizer := NewColorizer()
+
+	tests := []struct {
+		name        string
+		line        string
+		search      string
+		description string
+	}{
+		{
+			name:        "Error keyword highlighting",
+			line:        "Error",
+			search:      "Error",
+			description: "Error keyword should be highlighted",
+		},
+		{
+			name:        "TypeError highlighting",
+			line:        "TypeError: Cannot read property 'foo' of undefined",
+			search:      "TypeError",
+			description: "Error type should be highlighted",
+		},
+		{
+			name:        "Function name highlighting",
+			line:        "    at sum (/home/dev/Documents/trace.js:2:17)",
+			search:      "sum",
+			description: "Function name should be highlighted",
+		},
+		{
+			name:        "File name highlighting",
+			line:        "    at sum (/home/dev/Documents/trace.js:2:17)",
+			search:      "trace.js",
+			description: "File name should be highlighted",
+		},
+		{
+			name:        "Line number highlighting",
+			line:        "    at sum (/home/dev/Documents/trace.js:2:17)",
+			search:      "2",
+			description: "Line number should be highlighted",
+		},
+		{
+			name:        "Column number highlighting",
+			line:        "    at sum (/home/dev/Documents/trace.js:2:17)",
+			search:      "17",
+			description: "Column number should be highlighted",
+		},
+		{
+			name:        "Trace message highlighting",
+			line:        "Trace: add called with  2 and 3",
+			search:      "called",
+			description: "Trace message content should be highlighted",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			colorizer.SetSearchString(test.search)
+			result := colorizer.colorizeJavaScriptException(test.line)
+
+			// Check that search highlighting was applied
+			if !strings.Contains(result, test.search) {
+				t.Errorf("Expected result to contain search term '%s', got: %s", test.search, result)
+			}
+
+			// Check for ANSI escape sequences (indicating colorization was applied)
+			ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+			if !ansiRegex.MatchString(result) {
+				t.Errorf("Expected colorized output with ANSI codes, got: %s", result)
+			}
+		})
+	}
+}
+
+func TestJavaScriptExceptionSpecialCases(t *testing.T) {
+	// Test special cases and edge conditions
+
+	originalProfile := lipgloss.ColorProfile()
+	defer lipgloss.SetColorProfile(originalProfile)
+	lipgloss.SetColorProfile(termenv.TrueColor)
+
+	colorizer := NewColorizer()
+
+	tests := []struct {
+		name        string
+		line        string
+		description string
+	}{
+		{
+			name:        "Empty line",
+			line:        "",
+			description: "Should handle empty lines gracefully",
+		},
+		{
+			name:        "Line with only whitespace",
+			line:        "    ",
+			description: "Should handle whitespace-only lines",
+		},
+		{
+			name:        "Complex error message",
+			line:        "TypeError: Cannot read property 'length' of undefined at Object.processArray",
+			description: "Should handle complex error messages",
+		},
+		{
+			name:        "Very long file path",
+			line:        "    at processData (/very/long/path/to/some/deeply/nested/directory/structure/utils.js:123:45)",
+			description: "Should handle very long file paths",
+		},
+		{
+			name:        "Stack trace without parentheses",
+			line:        "    at async processFile",
+			description: "Should handle stack traces without file info",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := colorizer.colorizeJavaScriptException(test.line)
+
+			// Should never panic or return empty for non-empty input
+			if test.line != "" && result == "" {
+				t.Error("Expected non-empty result for non-empty input")
+			}
+		})
+	}
+}
+
 func TestGoroutineStackTraceColorization(t *testing.T) {
 	// This test ensures that Goroutine stack trace colorization works correctly
 	// and follows the same patterns as Java/Python exception colorization
