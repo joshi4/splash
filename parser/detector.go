@@ -27,10 +27,12 @@ type DetectionResult struct {
 
 // Parser handles log format detection with optimization for repeated formats
 type Parser struct {
-	detectors        []FormatDetector
-	previousFormat   LogFormat
-	previousDetector FormatDetector
-	mu               sync.RWMutex
+	detectors              []FormatDetector
+	previousFormat         LogFormat
+	previousDetector       FormatDetector
+	activeStatefulFormat   LogFormat        // Currently active multi-line format
+	activeStatefulDetector StatefulDetector // Currently active stateful detector
+	mu                     sync.RWMutex
 }
 
 // NewParser creates a new optimized parser with all supported detectors
@@ -39,29 +41,64 @@ func NewParser() *Parser {
 		detectors: []FormatDetector{
 			&JSONDetector{},
 			&LogfmtDetector{},
-			&JavaExceptionDetector{},   // High priority for Java exception headers
-			&PythonExceptionDetector{}, // High priority for Python traceback headers
-			&GoTestDetector{},          // High priority for specific go test patterns
-			&KubernetesDetector{},      // Must be before DockerDetector
+			&StatefulJavaExceptionDetector{},   // High priority for Java exception headers
+			&StatefulPythonExceptionDetector{}, // High priority for Python traceback headers
+			&GoTestDetector{},                  // High priority for specific go test patterns
+			&KubernetesDetector{},              // Must be before DockerDetector
 			&HerokuDetector{},
-			&RsyslogDetector{}, // Before generic Syslog to be more specific
-			&NginxDetector{},   // Must be before ApacheCommonDetector
+			&StatefulRsyslogDetector{}, // Before generic Syslog to be more specific
+			&NginxDetector{},           // Must be before ApacheCommonDetector
 			&ApacheCommonDetector{},
 			&DockerDetector{},
 			&RailsDetector{},
 			&SyslogDetector{},
 			&GoStandardDetector{},
 		},
-		previousFormat: UnknownFormat,
+		previousFormat:       UnknownFormat,
+		activeStatefulFormat: UnknownFormat,
 	}
 }
 
 // DetectFormat detects the log format for a given line with optimization
 func (p *Parser) DetectFormat(line string) LogFormat {
-	// Try previous detector first if we have one
-	p.mu.RLock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// Check if we have an active stateful detector
+	if p.activeStatefulDetector != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+		defer cancel()
+
+		// Check if this line continues the current multi-line format
+		if p.activeStatefulDetector.DetectContinuation(ctx, line) {
+			return p.activeStatefulFormat
+		}
+
+		// Check if this line ends the current multi-line format
+		if p.activeStatefulDetector.DetectEnd(ctx, line) {
+			// Line ends the format but is still part of it
+			format := p.activeStatefulFormat
+			p.activeStatefulDetector = nil
+			p.activeStatefulFormat = UnknownFormat
+			return format
+		}
+
+		// Line doesn't continue or end - check if it starts a new format
+		// Clear the active stateful detector since this line breaks the sequence
+		p.activeStatefulDetector = nil
+		p.activeStatefulFormat = UnknownFormat
+	}
+
+	// Try previous detector first if we have one (for non-stateful optimization)
 	previousDetector := p.previousDetector
-	p.mu.RUnlock()
+	if previousDetector != nil {
+		// Don't use previous detector if it was a stateful one that's now inactive
+		if stateful, ok := previousDetector.(StatefulDetector); ok {
+			if p.activeStatefulDetector != stateful {
+				previousDetector = nil
+			}
+		}
+	}
 
 	if previousDetector != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
@@ -73,11 +110,12 @@ func (p *Parser) DetectFormat(line string) LogFormat {
 	}
 
 	// Previous detector failed or doesn't exist, try all detectors concurrently
-	return p.detectAllFormats(line)
+	return p.detectAllFormatsWithState(line)
 }
 
-// detectAllFormats runs all detectors concurrently and returns the most specific match
-func (p *Parser) detectAllFormats(line string) LogFormat {
+// detectAllFormatsWithState runs all detectors concurrently and returns the most specific match
+// Also handles activation of stateful detectors
+func (p *Parser) detectAllFormatsWithState(line string) LogFormat {
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
 
@@ -111,33 +149,6 @@ LOOP:
 	}
 
 	if len(matches) == 0 {
-		// Handle continuation lines: stick with previous format only if appropriate
-		p.mu.RLock()
-		prev := p.previousFormat
-		p.mu.RUnlock()
-
-		if prev == RsyslogFormat {
-			return RsyslogFormat
-		}
-		if prev == SyslogFormat {
-			return SyslogFormat
-		}
-		if prev == JavaExceptionFormat {
-			// For Java exceptions, only continue if line has leading whitespace
-			// Lines without leading whitespace that don't match exception headers should end the exception
-			if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
-				return JavaExceptionFormat
-			}
-			// Line has no leading whitespace and didn't match exception header - end exception
-		}
-		if prev == PythonExceptionFormat {
-			// For Python exceptions, only continue if line has leading whitespace
-			// Lines without leading whitespace that don't match headers should end the exception
-			if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
-				return PythonExceptionFormat
-			}
-			// Line has no leading whitespace and didn't match traceback/exception header - end exception
-		}
 		return UnknownFormat
 	}
 
@@ -160,15 +171,25 @@ LOOP:
 	}
 
 	// Update previous format and detector
-	p.mu.Lock()
+	// Note: We're already holding the mutex from DetectFormat
 	p.previousFormat = bestMatch.Format
 	for _, detector := range p.detectors {
 		if detector.Format() == bestMatch.Format {
 			p.previousDetector = detector
+
+			// If this is a stateful detector that starts multi-line entries, activate it
+			if statefulDetector, ok := detector.(StatefulDetector); ok {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+				defer cancel()
+
+				if statefulDetector.DetectStart(ctx, line) {
+					p.activeStatefulDetector = statefulDetector
+					p.activeStatefulFormat = bestMatch.Format
+				}
+			}
 			break
 		}
 	}
-	p.mu.Unlock()
 
 	return bestMatch.Format
 }
@@ -393,41 +414,6 @@ func (d *SyslogDetector) PatternLength() int {
 	return len(syslogPattern)
 }
 
-// RsyslogDetector matches classic rsyslog-style headers explicitly containing syslogd/rsyslogd
-type RsyslogDetector struct{}
-
-// Example: "Aug  8 00:15:23 Host syslogd[347]: ASL Sender Statistics"
-// Also matches rsyslogd
-const rsyslogPattern = `^\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\S+\s+(?:rsyslogd|syslogd)\[\d+\]:`
-
-var rsyslogRegex = regexp.MustCompile(rsyslogPattern)
-
-func (d *RsyslogDetector) Detect(ctx context.Context, line string) bool {
-	done := make(chan bool, 1)
-	go func() {
-		done <- rsyslogRegex.MatchString(line)
-	}()
-
-	select {
-	case result := <-done:
-		return result
-	case <-ctx.Done():
-		return false
-	}
-}
-
-func (d *RsyslogDetector) Format() LogFormat {
-	return RsyslogFormat
-}
-
-func (d *RsyslogDetector) Specificity() int {
-	return 55 // Slightly higher than generic regex-based to prefer rsyslog over syslog when applicable
-}
-
-func (d *RsyslogDetector) PatternLength() int {
-	return len(rsyslogPattern)
-}
-
 type GoStandardDetector struct{}
 
 const goStandardPattern = `^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}`
@@ -618,80 +604,4 @@ func (d *GoTestDetector) Specificity() int {
 
 func (d *GoTestDetector) PatternLength() int {
 	return len(goTestPattern)
-}
-
-type JavaExceptionDetector struct{}
-
-// Match Java exception headers (no leading whitespace) and stack trace lines (with leading whitespace)
-const javaExceptionHeaderPattern = `^(Exception in thread|Caused by:)`
-const javaStackTracePattern = `^\s+(at\s+|\.\.\.|\d+\s+more)`
-
-var javaExceptionHeaderRegex = regexp.MustCompile(javaExceptionHeaderPattern)
-var javaStackTraceRegex = regexp.MustCompile(javaStackTracePattern)
-
-func (d *JavaExceptionDetector) Detect(ctx context.Context, line string) bool {
-	done := make(chan bool, 1)
-	go func() {
-		// Match exception headers OR stack trace lines
-		isHeader := javaExceptionHeaderRegex.MatchString(line)
-		isStackTrace := javaStackTraceRegex.MatchString(line)
-		done <- isHeader || isStackTrace
-	}()
-
-	select {
-	case result := <-done:
-		return result
-	case <-ctx.Done():
-		return false
-	}
-}
-
-func (d *JavaExceptionDetector) Format() LogFormat {
-	return JavaExceptionFormat
-}
-
-func (d *JavaExceptionDetector) Specificity() int {
-	return 70 // Higher than standard regex-based formats, same as GoTest
-}
-
-func (d *JavaExceptionDetector) PatternLength() int {
-	return len(javaExceptionHeaderPattern) + len(javaStackTracePattern)
-}
-
-type PythonExceptionDetector struct{}
-
-// Only match distinctive Python traceback headers and exception lines, not stack trace lines
-const pythonTracebackHeaderPattern = `^Traceback \(most recent call last\):`
-const pythonExceptionPattern = `^[A-Za-z][A-Za-z0-9]*Error:`
-
-var pythonTracebackHeaderRegex = regexp.MustCompile(pythonTracebackHeaderPattern)
-var pythonExceptionRegex = regexp.MustCompile(pythonExceptionPattern)
-
-func (d *PythonExceptionDetector) Detect(ctx context.Context, line string) bool {
-	done := make(chan bool, 1)
-	go func() {
-		// Only match traceback headers OR exception lines (let continuation logic handle the rest)
-		isHeader := pythonTracebackHeaderRegex.MatchString(line)
-		isException := pythonExceptionRegex.MatchString(line)
-		done <- isHeader || isException
-	}()
-
-	select {
-	case result := <-done:
-		return result
-	case <-ctx.Done():
-		return false
-	}
-}
-
-func (d *PythonExceptionDetector) Format() LogFormat {
-	return PythonExceptionFormat
-}
-
-func (d *PythonExceptionDetector) Specificity() int {
-	return 70 // Higher than standard regex-based formats, same as GoTest and Java
-}
-
-func (d *PythonExceptionDetector) PatternLength() int {
-	return len(pythonTracebackHeaderPattern) + len(pythonExceptionPattern)
 }
