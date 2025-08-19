@@ -157,9 +157,9 @@ universal_binaries:
   - id: splash
     ids:
       - splash
-    replace: true
+    replace: false
   - id: homebrew_universal
     ids:
       - homebrew
-    replace: true
+    replace: false
 
