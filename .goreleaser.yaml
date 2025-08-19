@@ -2,7 +2,8 @@ version: 1
 
 # Build configuration
 builds:
-  - env:
+  - id: standard
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -23,14 +24,40 @@ builds:
     binary: splash
     ldflags:
       - -s -w -X github.com/joshi4/splash/cmd.version={{.Version}}
+  - id: homebrew
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    main: ./main.go
+    binary: splash
+    ldflags:
+      - -s -w -X github.com/joshi4/splash/cmd.version={{.Version}} -X github.com/joshi4/splash/cmd.externalUpdate=true
 
 # Archive configuration  
 archives:
-  - format: binary
+  - id: standard
+    builds:
+      - standard
+    format: binary
     # Use zip for Windows archives
     format_overrides:
       - goos: windows
         format: zip
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- tolower .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+  - id: homebrew
+    builds:
+      - homebrew
+    format: binary
     name_template: >-
       {{ .ProjectName }}_
       {{- tolower .Os }}_
@@ -78,7 +105,9 @@ changelog:
 
 # Homebrew configuration
 brews:
-  - repository:
+  - ids:
+      - homebrew
+    repository:
       owner: joshi4
       name: homebrew-splash
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
