@@ -1,4 +1,4 @@
-version: 1
+version: 2
 
 # Build configuration
 builds:
@@ -153,9 +153,11 @@ release:
 
 # Universal binaries for macOS
 universal_binaries:
-  - ids:
+  - id: splash
+    ids:
       - splash
     replace: true
-  - ids:
+  - id: splash_homebrew
+    ids:
       - homebrew
     replace: true
