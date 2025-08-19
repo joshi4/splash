@@ -135,7 +135,13 @@ var rootCmd = &cobra.Command{
   docker logs mycontainer | splash
   kubectl logs pod-name | splash -s "ERROR"
   cat access.log | splash -r "[45]\d\d"`,
-	Run: func(_ *cobra.Command, _ []string) {
+	Run: func(cmd *cobra.Command, _ []string) {
+		// If stdin is not a pipe and no search flags are provided, show usage
+		if !isStdinFromPipe() && searchPattern == "" && regexPattern == "" {
+			_ = cmd.Help()
+			return
+		}
+
 		if err := runSplash(); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(1)
@@ -150,6 +156,15 @@ func Execute() {
 	if err != nil {
 		os.Exit(1)
 	}
+}
+
+// isStdinFromPipe checks if stdin is from a pipe (not a terminal)
+func isStdinFromPipe() bool {
+	stat, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return (stat.Mode() & os.ModeCharDevice) == 0
 }
 
 // runSplash is the main function that reads from stdin and writes to stdout
