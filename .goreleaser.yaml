@@ -104,7 +104,7 @@ changelog:
       order: 999
 
 # Homebrew configuration
-homebrew_casks:
+brews:
   - ids:
       - homebrew
     repository:
