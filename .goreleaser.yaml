@@ -54,7 +54,7 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-  - id: homebrew
+  - id: splash_homebrew
     ids:
       - homebrew
     formats: [ 'binary' ]
