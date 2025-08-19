@@ -106,7 +106,7 @@ changelog:
 # Homebrew configuration
 brews:
   - ids:
-      - homebrew
+      - splash_homebrew
     repository:
       owner: joshi4
       name: homebrew-splash
