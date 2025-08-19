@@ -117,7 +117,7 @@ brews:
     test: |
       system "#{bin}/splash", "version"
     install: |
-      bin.install "splash_darwin_homebrew_all" => "splash"
+      bin.install "splash" => "splash"
 
 # Release configuration
 release:
@@ -158,7 +158,8 @@ universal_binaries:
     ids:
       - splash
     replace: true
-  - id: splash_homebrew
+  - id: homebrew_universal
     ids:
       - homebrew
     replace: true
+
