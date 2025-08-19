@@ -2,7 +2,7 @@ version: 1
 
 # Build configuration
 builds:
-  - id: standard
+  - id: splash
     env:
       - CGO_ENABLED=0
     goos:
@@ -41,7 +41,7 @@ builds:
 archives:
   - id: standard
     builds:
-      - standard
+      - splash
     format: binary
     # Use zip for Windows archives
     format_overrides:
@@ -153,4 +153,9 @@ release:
 
 # Universal binaries for macOS
 universal_binaries:
-  - replace: true
+  - ids:
+      - splash
+    replace: true
+  - ids:
+      - homebrew
+    replace: true
