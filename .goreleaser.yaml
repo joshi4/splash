@@ -59,8 +59,7 @@ archives:
       - homebrew
     format: binary
     name_template: >-
-      {{ .ProjectName }}_
-      {{- tolower .Os }}_
+      {{ .ProjectName }}_hombrew_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
@@ -117,7 +116,7 @@ brews:
     test: |
       system "#{bin}/splash", "version"
     install: |
-      bin.install "splash_darwin_all" => "splash"
+      bin.install "splash_darwin_homebrew_all" => "splash"
 
 # Release configuration
 release:
