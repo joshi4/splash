@@ -29,6 +29,7 @@ builds:
       - CGO_ENABLED=0
     goos:
       - darwin
+      - linux
     goarch:
       - amd64
       - arm64
@@ -40,13 +41,13 @@ builds:
 # Archive configuration  
 archives:
   - id: standard
-    builds:
+    ids:
       - splash
-    format: binary
+    formats: [ 'binary' ]
     # Use zip for Windows archives
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [ 'zip' ]
     name_template: >-
       {{ .ProjectName }}_
       {{- tolower .Os }}_
@@ -55,11 +56,11 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
   - id: homebrew
-    builds:
+    ids:
       - homebrew
-    format: binary
+    formats: [ 'binary' ]
     name_template: >-
-      {{ .ProjectName }}_hombrew_
+      {{ .ProjectName }}_homebrew_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
