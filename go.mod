@@ -1,6 +1,6 @@
 module github.com/joshi4/splash
 
-go 1.24.5
+go 1.25.0
 
 require (
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
