@@ -33,7 +33,7 @@ builds:
       - amd64
       - arm64
     main: ./main.go
-    binary: splash
+    binary: splash_homebrew
     ldflags:
       - -s -w -X github.com/joshi4/splash/cmd.version={{.Version}} -X github.com/joshi4/splash/cmd.externalUpdate=true
 
@@ -117,7 +117,7 @@ brews:
     test: |
       system "#{bin}/splash", "version"
     install: |
-      bin.install "splash" => "splash"
+      bin.install "splash_homebrew_" => "splash"
 
 # Release configuration
 release:
