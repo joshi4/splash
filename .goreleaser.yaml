@@ -157,11 +157,13 @@ universal_binaries:
   - id: splash
     ids:
       - splash
-    replace: false
+    name_template: >-
+      {{ .ProjectName }}_standard_{{ .Version }}
+    replace: true
   - id: homebrew_universal
     ids:
       - homebrew
     name_template: >-
-      {{ .ProjectName }}_homebrew_{{.Version }}
-    replace: false
+      {{ .ProjectName }}_homebrew_{{ .Version }}
+    replace: true
 
