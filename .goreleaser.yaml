@@ -1,9 +1,8 @@
-version: 2
+version: 1
 
 # Build configuration
 builds:
-  - id: splash
-    env:
+  - env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -24,42 +23,16 @@ builds:
     binary: splash
     ldflags:
       - -s -w -X github.com/joshi4/splash/cmd.version={{.Version}}
-  - id: homebrew
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-    main: ./main.go
-    binary: splash_homebrew
-    ldflags:
-      - -s -w -X github.com/joshi4/splash/cmd.version={{.Version}} -X github.com/joshi4/splash/cmd.externalUpdate=true
 
 # Archive configuration  
 archives:
-  - id: standard
-    ids:
-      - splash
-    formats: [ 'binary' ]
+  - format: binary
     # Use zip for Windows archives
     format_overrides:
       - goos: windows
-        formats: [ 'zip' ]
+        format: zip
     name_template: >-
       {{ .ProjectName }}_
-      {{- tolower .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
-  - id: splash_homebrew
-    ids:
-      - homebrew
-    formats: [ 'binary' ]
-    name_template: >-
-      {{ .ProjectName }}_homebrew_
       {{- tolower .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
@@ -105,9 +78,7 @@ changelog:
 
 # Homebrew configuration
 brews:
-  - ids:
-      - splash_homebrew
-    repository:
+  - repository:
       owner: joshi4
       name: homebrew-splash
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
@@ -117,7 +88,7 @@ brews:
     test: |
       system "#{bin}/splash", "version"
     install: |
-      bin.install "splash_homebrew_" => "splash"
+      bin.install "splash_darwin_all" => "splash"
 
 # Release configuration
 release:
@@ -154,16 +125,4 @@ release:
 
 # Universal binaries for macOS
 universal_binaries:
-  - id: splash
-    ids:
-      - splash
-    name_template: >-
-      {{ .ProjectName }}_standard_{{ .Version }}
-    replace: true
-  - id: homebrew_universal
-    ids:
-      - homebrew
-    name_template: >-
-      {{ .ProjectName }}_homebrew_{{ .Version }}
-    replace: true
-
+  - replace: true
