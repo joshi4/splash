@@ -161,5 +161,7 @@ universal_binaries:
   - id: homebrew_universal
     ids:
       - homebrew
+    name_template: >-
+      {{ .ProjectName }}_homebrew_{{.Version }}
     replace: false
 
